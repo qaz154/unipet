@@ -1,10 +1,16 @@
-# UniPet 🐾
+# UniPet
 
-**Universal Desktop Pet Framework** — a pixel pet that reacts to your AI coding agents in real-time.
+**A desktop pet that watches your AI coding agents — so you don't have to.**
+
+[![CI](https://github.com/qaz154/unipet/actions/workflows/ci.yml/badge.svg)](https://github.com/qaz154/unipet/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Electron](https://img.shields.io/badge/Electron-39-47848F?logo=electron)](https://www.electronjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript)](https://www.typescriptlang.org/)
+
+UniPet sits on your desktop and reacts in real-time to what your AI agents are doing — thinking, coding, testing, waiting for approval, celebrating success, or panicking on errors.
 
 Works with **Claude Code, Codex, Cursor, Gemini CLI, Copilot, Kiro, Kimi** and any MCP-capable agent.
 
-<!-- TODO: Replace with actual screenshot/GIF after packaging -->
 ```
   ╭──────────╮
   │  ◕    ◕  │   "Tests passing! 149/149 ✓"
@@ -12,29 +18,28 @@ Works with **Claude Code, Codex, Cursor, Gemini CLI, Copilot, Kiro, Kimi** and a
   ╰──────────╯
 ```
 
-## Requirements
+## Download
 
-- **Node.js** >= 22
-- **pnpm** >= 10
+Get the latest build from [**Releases**](https://github.com/qaz154/unipet/releases/latest):
 
-## Install
+| Platform | File |
+|----------|------|
+| **Windows** | `UniPet-Setup-0.1.0.exe` |
+| **macOS** | `UniPet-0.1.0.dmg` |
+| **Linux** | `UniPet-0.1.0.AppImage` |
 
-### Pre-built Release
+> macOS may show a security warning on first launch. Right-click → Open, or run:
+> ```
+> xattr -dr com.apple.quarantine /Applications/UniPet.app
+> ```
 
-Download from [Releases](https://github.com/qaz154/unipet/releases):
-- **Windows**: `UniPet-Setup.exe` (x64)
-- **macOS**: `UniPet.dmg`
-- **Linux**: `UniPet.AppImage`
+## Quick Start
 
-### From Source
+### 1. Install & Launch
 
-```bash
-git clone https://github.com/qaz154/unipet.git
-cd unipet && pnpm install && pnpm build
-pnpm --filter @unipet/desktop dev
-```
+Download from [Releases](https://github.com/qaz154/unipet/releases/latest) and open the app. You'll see a pixel pet on your desktop and a tray icon.
 
-## Connect Your Agent (One Command)
+### 2. Connect Your Agent
 
 ```bash
 # Auto-detect installed agents and register hooks
@@ -46,16 +51,33 @@ node hooks/install-hooks.js --agent codex
 node hooks/install-hooks.js --agent cursor
 ```
 
-Supported agents: Claude Code, Codex CLI, Cursor, Gemini CLI, Copilot CLI, CodeBuddy, Kiro CLI, Kimi CLI, OpenCode, OpenClaw, Hermes.
+### 3. Start Coding
+
+The pet automatically reacts when your agent starts working. No configuration needed.
+
+## Supported Agents
+
+| Agent | Integration Method |
+|-------|-------------------|
+| **Claude Code** | Hooks (auto) |
+| **Codex CLI** | Hooks (auto) |
+| **Cursor** | Hooks (auto) |
+| **Gemini CLI** | Hooks (auto) |
+| **Copilot CLI** | Hooks (auto) |
+| **Kiro CLI** | Hooks (auto) |
+| **Kimi CLI** | Hooks (auto) |
+| **OpenCode** | Plugin |
+| **OpenClaw** | Plugin |
+| **Hermes** | Plugin |
+| **Any MCP agent** | MCP Server |
 
 ## Features
 
 | Feature | Description |
 |---------|-------------|
-| **24 Visual States** | idle, thinking, working, editing, testing, juggling, error, happy, love, sleeping... |
-| **Multi-Agent Tracking** | Priority-based state resolution across multiple simultaneous agent sessions |
+| **24 Visual States** | idle, thinking, working, editing, testing, error, happy, love, sleeping... |
+| **Multi-Agent Tracking** | Priority-based state resolution across simultaneous sessions |
 | **Permission Bubbles** | Allow/Deny/Once buttons — hook blocks until you decide |
-| **Desktop Notifications** | System-level notification via `POST /api/notify` |
 | **Speech Bubbles** | Agent messages with secret/URL/path sanitization |
 | **Emotion Engine** | PAD 3D emotion vector with natural time decay |
 | **Eye Tracking** | Pet eyes follow your cursor |
@@ -67,39 +89,49 @@ Supported agents: Claude Code, Codex CLI, Cursor, Gemini CLI, Copilot CLI, CodeB
 | **Theme System** | JSON schema + variants + import/export |
 | **Sound Effects** | Chiptune-style feedback for state changes |
 | **MCP Server** | `npx @unipet/mcp` — 4 tools for any MCP agent |
-| **Auto Update** | GitHub Releases integration |
 | **i18n** | English, Chinese, Japanese, Korean |
 | **Privacy** | `setContentProtection` hides pet from screen capture |
 
+## MCP Integration
+
+Any MCP-capable agent can control the pet:
+
+```json
+{
+  "mcpServers": {
+    "unipet": {
+      "command": "npx",
+      "args": ["-y", "@unipet/mcp"]
+    }
+  }
+}
+```
+
+Available tools: `unipet_status`, `unipet_react`, `unipet_say`, `unipet_move`
+
 ## HTTP API
 
-```bash
-# Any agent can talk to the pet via HTTP:
-curl -X POST http://localhost:23333/api/state   -d '{"state":"working"}'
-curl -X POST http://localhost:23333/api/speech  -d '{"message":"Hello!"}'
-curl -X POST http://localhost:23333/api/notify  -d '{"title":"Done","message":"Build passed"}'
-curl -X POST http://localhost:23333/api/emotion -d '{"valence":0.8,"arousal":0.5,"dominance":0.6}'
+Any agent can talk to the pet via HTTP:
 
-# Permission request (blocks hook until user responds):
+```bash
+# Set state
+curl -X POST http://localhost:23333/api/state -d '{"state":"working"}'
+
+# Show speech bubble
+curl -X POST http://localhost:23333/api/speech -d '{"message":"Hello!"}'
+
+# Desktop notification
+curl -X POST http://localhost:23333/api/notify -d '{"title":"Done","message":"Build passed"}'
+
+# Permission request (blocks until user responds)
 curl -X POST http://localhost:23333/api/permission \
   -d '{"permissionId":"p1","toolName":"Bash","message":"Allow rm?"}'
 
-# Long-poll for permission result:
-curl http://localhost:23333/api/permission-result?id=p1
-
-# SSE event stream:
+# SSE event stream
 curl http://localhost:23333/api/events
 ```
 
 Remote agents use `Authorization: Bearer <token>` from `~/.unipet/auth-token`.
-
-## MCP Integration
-
-```bash
-npx @unipet/mcp
-```
-
-Tools: `unipet_status`, `unipet_react`, `unipet_say`, `unipet_move`
 
 ## Architecture
 
@@ -123,10 +155,12 @@ Monorepo: `@unipet/core` · `@unipet/adapters` · `@unipet/renderers` · `@unipe
 ## Development
 
 ```bash
-pnpm install          # Install dependencies
-pnpm build            # Build all 7 packages
-pnpm test             # Run 149 tests
-pnpm typecheck        # Type check
+# Requirements: Node.js >= 22, pnpm >= 10
+git clone https://github.com/qaz154/unipet.git
+cd unipet
+pnpm install
+pnpm build
+pnpm test              # 149 tests
 pnpm --filter @unipet/desktop dev  # Dev mode with hot reload
 ```
 
@@ -147,10 +181,12 @@ pnpm --filter @unipet/desktop dev  # Dev mode with hot reload
 }
 ```
 
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the full theme schema reference.
+
 ## Contributing
 
 PRs welcome. Add tests, follow existing patterns, `pnpm test` must pass.
 
 ## License
 
-MIT
+[MIT](LICENSE)
