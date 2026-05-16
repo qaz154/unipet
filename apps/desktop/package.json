@@ -9,6 +9,7 @@
     "dev": "tsc -p tsconfig.electron.json && node scripts/dev.mjs",
     "build": "tsc -p tsconfig.electron.json && vue-tsc --noEmit && vite build",
     "build:package": "tsc -p tsconfig.electron.json && vue-tsc --noEmit && vite build && electron-builder",
+    "build:ci": "tsc -p tsconfig.electron.json && vue-tsc --noEmit && vite build && electron-builder --publish never",
     "icons": "node scripts/generate-icons.mjs",
     "typecheck": "vue-tsc --noEmit",
     "test:e2e": "tsc -p tsconfig.electron.json && vite build && playwright test",
