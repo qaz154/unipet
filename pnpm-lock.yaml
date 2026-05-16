@@ -29,6 +29,9 @@ importers:
       '@unipet/themes':
         specifier: workspace:*
         version: link:../../packages/themes
+      electron-updater:
+        specifier: ^6.3.0
+        version: 6.8.3
       pinia:
         specifier: ^3.0.0
         version: 3.0.4(typescript@5.9.3)(vue@3.5.34(typescript@5.9.3))
@@ -49,14 +52,11 @@ importers:
         specifier: ^5.2.0
         version: 5.2.4(vite@6.4.2(@types/node@22.19.19)(jiti@2.7.0))(vue@3.5.34(typescript@5.9.3))
       electron:
-        specifier: ^36.0.0
-        version: 36.9.5
+        specifier: ^39.8.1
+        version: 39.8.10
       electron-builder:
         specifier: ^26.0.0
         version: 26.8.1(electron-builder-squirrel-windows@26.8.1)
-      electron-updater:
-        specifier: ^6.3.0
-        version: 6.8.3
       typescript:
         specifier: ^5.8.0
         version: 5.9.3
@@ -1111,8 +1111,8 @@ packages:
     resolution: {integrity: sha512-bO3y10YikuUwUuDUQRM4KfwNkKhnpVO7IPdbsrejwN9/AABJzzTQ4GeHwyzNSrVO+tEH3/Np255a3sVZpZDjvg==}
     engines: {node: '>=8.0.0'}
 
-  electron@36.9.5:
-    resolution: {integrity: sha512-1UCss2IqxqujSzg/2jkRjuiT3G+EEXgd6UKB5kUekwQW1LJ6d4QCr8YItfC3Rr9VIGRDJ29eOERmnRNO1Eh+NA==}
+  electron@39.8.10:
+    resolution: {integrity: sha512-zbYtGPYUI7PzqLAzkk21Rk6j67WN0hxn0Mq/njErZo1d0HSf33is4f8ICI5fMLy5vYe0JtCtM5sYunNOaochSQ==}
     engines: {node: '>= 12.20.55'}
     hasBin: true
 
@@ -3295,7 +3295,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  electron@36.9.5:
+  electron@39.8.10:
     dependencies:
       '@electron/get': 2.0.3
       '@types/node': 22.19.19
