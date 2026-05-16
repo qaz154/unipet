@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "id": "svg-cat",
+  "displayName": "SVG Cat",
+  "description": "Animated vector cat with SMIL animations and eye tracking",
+  "author": "UniPet",
+  "license": "MIT",
+  "renderer": "svg",
+  "rendererConfig": {
+    "viewBox": "0 0 200 200",
+    "renderMode": "object",
+    "eyeTracking": {
+      "eyeSelector": "#eyes",
+      "states": ["idle", "working", "editing", "testing", "attention"],
+      "maxOffset": 6
+    }
+  },
+  "states": {
+    "idle": { "files": ["idle.svg"] },
+    "thinking": { "files": ["thinking.svg"] },
+    "working": { "files": ["working.svg"] },
+    "editing": { "files": ["editing.svg"] },
+    "testing": { "files": ["testing.svg"] },
+    "error": { "files": ["error.svg"], "autoReturnMs": 5000 },
+    "attention": { "files": ["attention.svg"], "autoReturnMs": 3000 },
+    "celebrating": { "files": ["happy.svg"], "autoReturnMs": 4000 },
+    "notification": { "files": ["shocked.svg"], "autoReturnMs": 3000 },
+    "sleeping": { "files": ["sleeping.svg"] },
+    "yawning": { "files": ["sleeping.svg"] },
+    "dozing": { "files": ["sleeping.svg"] },
+    "waking": { "files": ["idle.svg"] },
+    "happy": { "files": ["happy.svg"] },
+    "angry": { "files": ["angry.svg"] },
+    "love": { "files": ["love.svg"] },
+    "shocked": { "files": ["shocked.svg"], "autoReturnMs": 2000 },
+    "waiting": { "files": ["thinking.svg"] },
+    "waving": { "files": ["attention.svg"], "autoReturnMs": 3000 },
+    "juggling": { "files": ["working.svg"] },
+    "walking": { "files": ["idle.svg"] },
+    "crawling": { "files": ["idle.svg"] },
+    "dragging": { "files": ["shocked.svg"] },
+    "peeking": { "files": ["happy.svg"] },
+    "talking": { "files": ["attention.svg"] }
+  },
+  "timings": {
+    "minDisplayMs": 300,
+    "autoReturnMs": 3000,
+    "sleepPhaseMs": 3000,
+    "mouseIdleTimeoutMs": 120000,
+    "idleCycleMs": 8000
+  },
+  "sleepSequence": "full",
+  "idleAnimations": ["idle", "happy", "thinking"]
+}

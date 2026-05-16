@@ -1,0 +1,151 @@
+{
+  "schemaVersion": 1,
+  "id": "pixel-slime",
+  "displayName": "Pixel Slime",
+  "description": "A cute ink-wash slime that reacts to your AI coding activity",
+  "author": "UniPet",
+  "license": "MIT",
+  "renderer": "css-pixel",
+  "rendererConfig": {
+    "gridSize": 16,
+    "upscale": 8,
+    "palette": {
+      ".": "transparent",
+      "#": "#1a1a22",
+      "W": "#f8f8ff",
+      "M": "#9a98a2",
+      "L": "#3e3d48",
+      "R": "#9c2e24",
+      "B": "#4a6fa5",
+      "G": "#6b8f71"
+    },
+    "body": [
+      "....######......",
+      "...#WWWWWW#.....",
+      "..#WWWWWWWW#....",
+      "..#WWWWWWWW#....",
+      ".#WWWWWWWWWW#...",
+      ".#WWWWWWWWWW#...",
+      ".#WWWWWWWWWW#...",
+      ".#WWWWWWWWWW#...",
+      ".#WWWWWWWWWW#...",
+      ".#WWWWWWWWWW#...",
+      ".#WWMMMMMMWW#...",
+      "..#MMLLLMMW#....",
+      "..#MMLLLMMW#....",
+      "...#MLLLMW#.....",
+      "....######......",
+      "................"
+    ],
+    "faces": {
+      "idle": {
+        "eyes": ["L.L", ".L."],
+        "eyePos": { "row": 4, "col": 5 },
+        "mouth": ["L...L", ".LLL."],
+        "mouthPos": { "row": 7, "col": 5 }
+      },
+      "happy": {
+        "eyes": [".L.", "LLL"],
+        "eyePos": { "row": 4, "col": 5 },
+        "mouth": ["L.....L", ".LLLLL."],
+        "mouthPos": { "row": 7, "col": 4 }
+      },
+      "thinking": {
+        "eyes": ["L.L", ".L."],
+        "eyePos": { "row": 4, "col": 5 },
+        "mouth": ["..L..", ".LLL."],
+        "mouthPos": { "row": 7, "col": 5 }
+      },
+      "working": {
+        "eyes": ["LLL", "L.L"],
+        "eyePos": { "row": 4, "col": 5 },
+        "mouth": [".LLL."],
+        "mouthPos": { "row": 7, "col": 5 }
+      },
+      "editing": {
+        "eyes": ["L.L", "LLL"],
+        "eyePos": { "row": 4, "col": 5 },
+        "mouth": ["L...L", "LLLLL"],
+        "mouthPos": { "row": 7, "col": 5 }
+      },
+      "testing": {
+        "eyes": ["B.B", ".B."],
+        "eyePos": { "row": 4, "col": 5 },
+        "mouth": ["G...G", ".GGG."],
+        "mouthPos": { "row": 7, "col": 5 }
+      },
+      "error": {
+        "eyes": ["R.R", "RRR"],
+        "eyePos": { "row": 4, "col": 5 },
+        "mouth": [".RRR.", "RR.RR", ".RRR."],
+        "mouthPos": { "row": 7, "col": 5 }
+      },
+      "shocked": {
+        "eyes": ["L.L", "LLL", "LLL"],
+        "eyePos": { "row": 3, "col": 5 },
+        "mouth": [".L.", "LLL", ".L."],
+        "mouthPos": { "row": 7, "col": 6 }
+      },
+      "sleeping": {
+        "eyes": ["...", "..."],
+        "eyePos": { "row": 4, "col": 5 },
+        "mouth": ["....."],
+        "mouthPos": { "row": 7, "col": 5 }
+      },
+      "angry": {
+        "eyes": ["L..", ".LL", "LLL"],
+        "eyePos": { "row": 4, "col": 5 },
+        "mouth": ["LL....LL", ".LLLLLL."],
+        "mouthPos": { "row": 7, "col": 4 }
+      },
+      "love": {
+        "eyes": ["R.R", "RRR", ".R."],
+        "eyePos": { "row": 4, "col": 5 },
+        "mouth": ["L....L", ".LLLL."],
+        "mouthPos": { "row": 7, "col": 5 }
+      },
+      "celebrating": {
+        "eyes": [".L.", "LLL"],
+        "eyePos": { "row": 3, "col": 5 },
+        "mouth": ["L.......L", ".LLLLLLL."],
+        "mouthPos": { "row": 7, "col": 3 }
+      }
+    }
+  },
+  "states": {
+    "idle": { "files": ["idle"] },
+    "thinking": { "files": ["thinking"] },
+    "working": { "files": ["working"] },
+    "editing": { "files": ["editing"] },
+    "testing": { "files": ["testing"] },
+    "error": { "files": ["error"], "autoReturnMs": 5000 },
+    "attention": { "files": ["happy"], "autoReturnMs": 3000 },
+    "celebrating": { "files": ["celebrating"], "autoReturnMs": 4000 },
+    "notification": { "files": ["shocked"], "autoReturnMs": 3000 },
+    "sleeping": { "files": ["sleeping"] },
+    "yawning": { "files": ["idle"] },
+    "dozing": { "files": ["sleeping"] },
+    "waking": { "files": ["idle"] },
+    "happy": { "files": ["happy"] },
+    "angry": { "files": ["angry"] },
+    "love": { "files": ["love"] },
+    "shocked": { "files": ["shocked"], "autoReturnMs": 2000 },
+    "waiting": { "files": ["thinking"] },
+    "waving": { "files": ["happy"], "autoReturnMs": 3000 },
+    "juggling": { "files": ["working"] },
+    "walking": { "files": ["idle"] },
+    "crawling": { "files": ["idle"] },
+    "dragging": { "files": ["shocked"] },
+    "peeking": { "files": ["happy"] },
+    "talking": { "files": ["happy"] }
+  },
+  "timings": {
+    "minDisplayMs": 500,
+    "autoReturnMs": 3000,
+    "sleepPhaseMs": 3000,
+    "mouseIdleTimeoutMs": 300000,
+    "idleCycleMs": 10000
+  },
+  "sleepSequence": "full",
+  "idleAnimations": ["idle", "happy", "thinking"]
+}

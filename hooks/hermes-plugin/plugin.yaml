@@ -1,0 +1,5 @@
+name: unipet
+version: 0.1.0
+description: UniPet desktop pet integration
+author: UniPet
+entry: __init__.py

@@ -1,0 +1,35 @@
+{
+  "name": "@unipet/renderers",
+  "version": "0.1.0",
+  "description": "CSS pixel art, SVG, and spritesheet renderers for UniPet",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/qaz154/unipet.git",
+    "directory": "packages/renderers"
+  },
+  "files": ["dist"],
+  "keywords": ["desktop-pet", "pixel-art", "svg", "spritesheet", "renderer"],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@unipet/core": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.0"
+  }
+}

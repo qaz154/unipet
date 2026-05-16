@@ -1,0 +1,38 @@
+{
+  "name": "@unipet/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "unipet": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@unipet/core": "workspace:*",
+    "@unipet/adapters": "workspace:*",
+    "@unipet/mcp-server": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.8.0"
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": ["desktop-pet", "ai-agent", "mcp", "claude-code", "electron"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/qaz154/unipet.git"
+  },
+  "license": "MIT"
+}

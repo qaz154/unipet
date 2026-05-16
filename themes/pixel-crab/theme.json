@@ -1,0 +1,139 @@
+{
+  "schemaVersion": 1,
+  "id": "pixel-crab",
+  "displayName": "Pixel Crab",
+  "description": "A friendly pixel crab that clacks its claws when you code",
+  "author": "UniPet",
+  "license": "MIT",
+  "renderer": "css-pixel",
+  "rendererConfig": {
+    "gridSize": 16,
+    "upscale": 8,
+    "palette": {
+      ".": "transparent",
+      "#": "#2d1b1b",
+      "R": "#e85d4a",
+      "r": "#c44a3a",
+      "O": "#f4a261",
+      "W": "#f8f8ff",
+      "L": "#2d1b1b",
+      "B": "#4a6fa5"
+    },
+    "body": [
+      "................",
+      ".R#......#R.....",
+      "RR#......#RR....",
+      ".R#......#R.....",
+      "..########......",
+      "..#RRRRRR#......",
+      "..#RROOORR#.....",
+      "..#RRRRRRRR#....",
+      "..#RRWLLWRR#....",
+      "..#RRRRRRRR#....",
+      "..#RRrrRRRR#....",
+      "..#RRRRRRRR#....",
+      "...#RRRRRR#.....",
+      "...R#....#R.....",
+      "..RR#....#RR....",
+      ".RRR#....#RRR..."
+    ],
+    "faces": {
+      "idle": {
+        "eyes": ["W.W"],
+        "eyePos": { "row": 8, "col": 5 },
+        "mouth": ["rrr"],
+        "mouthPos": { "row": 10, "col": 6 }
+      },
+      "happy": {
+        "eyes": [".W.", "WWW"],
+        "eyePos": { "row": 8, "col": 5 },
+        "mouth": ["r...r", ".rrr."],
+        "mouthPos": { "row": 10, "col": 5 }
+      },
+      "thinking": {
+        "eyes": ["W.W"],
+        "eyePos": { "row": 8, "col": 5 },
+        "mouth": ["..r..", ".rrr."],
+        "mouthPos": { "row": 10, "col": 5 }
+      },
+      "working": {
+        "eyes": ["BBB", "B.B"],
+        "eyePos": { "row": 8, "col": 5 },
+        "mouth": [".rrr."],
+        "mouthPos": { "row": 10, "col": 5 }
+      },
+      "editing": {
+        "eyes": ["B.B", "BBB"],
+        "eyePos": { "row": 8, "col": 5 },
+        "mouth": ["r...r", "rrrrr"],
+        "mouthPos": { "row": 10, "col": 5 }
+      },
+      "error": {
+        "eyes": ["R.R", "RRR"],
+        "eyePos": { "row": 8, "col": 5 },
+        "mouth": ["RRR", "R.R", "RRR"],
+        "mouthPos": { "row": 10, "col": 5 }
+      },
+      "shocked": {
+        "eyes": ["W.W", "WWW", "WWW"],
+        "eyePos": { "row": 7, "col": 5 },
+        "mouth": [".r.", "rrr", ".r."],
+        "mouthPos": { "row": 10, "col": 6 }
+      },
+      "sleeping": {
+        "eyes": ["...", "..."],
+        "eyePos": { "row": 8, "col": 5 },
+        "mouth": ["..."],
+        "mouthPos": { "row": 10, "col": 6 }
+      },
+      "angry": {
+        "eyes": ["R..", ".RR", "RRR"],
+        "eyePos": { "row": 8, "col": 5 },
+        "mouth": ["RR....RR", ".RRRRR."],
+        "mouthPos": { "row": 10, "col": 4 }
+      },
+      "love": {
+        "eyes": ["O.O", "OOO", ".O."],
+        "eyePos": { "row": 8, "col": 5 },
+        "mouth": ["r....r", ".rrrr."],
+        "mouthPos": { "row": 10, "col": 5 }
+      }
+    }
+  },
+  "states": {
+    "idle": { "files": ["idle"] },
+    "thinking": { "files": ["thinking"] },
+    "working": { "files": ["working"] },
+    "editing": { "files": ["editing"] },
+    "testing": { "files": ["working"] },
+    "error": { "files": ["error"], "autoReturnMs": 5000 },
+    "attention": { "files": ["happy"], "autoReturnMs": 3000 },
+    "celebrating": { "files": ["happy"], "autoReturnMs": 4000 },
+    "notification": { "files": ["shocked"], "autoReturnMs": 3000 },
+    "sleeping": { "files": ["sleeping"] },
+    "yawning": { "files": ["idle"] },
+    "dozing": { "files": ["sleeping"] },
+    "waking": { "files": ["idle"] },
+    "happy": { "files": ["happy"] },
+    "angry": { "files": ["angry"] },
+    "love": { "files": ["love"] },
+    "shocked": { "files": ["shocked"], "autoReturnMs": 2000 },
+    "waiting": { "files": ["thinking"] },
+    "waving": { "files": ["happy"], "autoReturnMs": 3000 },
+    "juggling": { "files": ["working"] },
+    "walking": { "files": ["idle"] },
+    "crawling": { "files": ["idle"] },
+    "dragging": { "files": ["shocked"] },
+    "peeking": { "files": ["happy"] },
+    "talking": { "files": ["happy"] }
+  },
+  "timings": {
+    "minDisplayMs": 500,
+    "autoReturnMs": 3000,
+    "sleepPhaseMs": 3000,
+    "mouseIdleTimeoutMs": 300000,
+    "idleCycleMs": 10000
+  },
+  "sleepSequence": "full",
+  "idleAnimations": ["idle", "happy", "thinking"]
+}

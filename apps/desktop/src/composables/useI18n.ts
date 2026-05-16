@@ -1,0 +1,282 @@
+/**
+ * i18n composable with proper Vue reactivity.
+ *
+ * t() reads currentLocale.value directly so Vue tracks the dependency
+ * and re-renders templates when locale changes.
+ *
+ * Translation files are co-located here so the renderer ships a single
+ * bundle. The string set is kept in sync with the tray-side strings
+ * in electron/main.ts manually — keep both in mind when adding new keys.
+ */
+
+import { ref } from 'vue';
+
+const en = {
+  'pet.hello': 'Hello! I am UniPet!',
+  'pet.ready': 'Ready to code!',
+  'pet.thinking': 'Hmm, let me think...',
+  'pet.working': 'Working hard!',
+  'pet.done': 'All done!',
+  'pet.sleeping': 'Zzz...',
+  'pet.error': 'Oops, something went wrong',
+  'pet.happy': 'Yay!',
+  'pet.idle1': 'Nice weather today~',
+  'pet.idle2': '*stretches*',
+  'pet.idle3': '*yawns*',
+  'pet.drag': 'Waaah!',
+  'pet.click': 'Hehe~',
+  'settings.general': 'General',
+  'settings.themes': 'Themes',
+  'settings.agents': 'Agents',
+  'settings.language': 'Language',
+  'settings.languageDesc': 'Display language',
+  'settings.appearance': 'Appearance',
+  'settings.behavior': 'Behavior',
+  'settings.petScale': 'Pet Scale',
+  'settings.petScaleDesc': 'Size of the pet on screen',
+  'settings.opacity': 'Opacity',
+  'settings.opacityDesc': 'Pet window transparency',
+  'settings.sleepSequence': 'Sleep Sequence',
+  'settings.sleepFull': 'Full (yawn → doze → sleep)',
+  'settings.sleepDirect': 'Direct (idle → sleep)',
+  'settings.idleTimeout': 'Idle Timeout',
+  'settings.idleTimeoutDesc': 'Time before pet starts sleeping',
+  'settings.clickReactions': 'Click Reactions',
+  'settings.clickReactionsDesc': 'Pet reacts when clicked',
+  'settings.dragToMove': 'Drag to Move',
+  'settings.dragToMoveDesc': 'Drag the pet to reposition',
+  'settings.soundEffects': 'Sound Effects',
+  'settings.soundEffectsDesc': 'Play sounds on state changes',
+  'settings.edgeSnapping': 'Edge Snapping',
+  'settings.edgeSnappingDesc': 'Pet clings to screen edges',
+  'settings.screenPrivacy': 'Screen Privacy',
+  'settings.screenPrivacyDesc': 'Pet invisible to screenshots',
+  'settings.desktop': 'Desktop',
+  'settings.alwaysOnTop': 'Always on Top',
+  'settings.alwaysOnTopDesc': 'Pet stays above other windows',
+  'settings.interaction': 'Interaction',
+  'settings.sleep': 'Sleep',
+  'settings.petCharacter': 'Pet Character',
+  'settings.size': 'Size & Transparency',
+  'settings.hideBubbles': 'Hide Speech Bubbles',
+  'settings.hideBubblesDesc': 'Suppress all chat bubbles',
+  'settings.appearanceMode': 'Appearance Mode',
+  'settings.appearanceModeDesc': 'Match system, light, or dark',
+  'settings.searchPlaceholder': 'Search settings',
+  'settings.about': 'About',
+} as const;
+
+type MessageKey = keyof typeof en;
+type LocaleMessages = Record<MessageKey, string>;
+
+const zh: LocaleMessages = {
+  'pet.hello': '你好！我是 UniPet！',
+  'pet.ready': '准备好写代码了！',
+  'pet.thinking': '嗯，让我想想...',
+  'pet.working': '努力工作中！',
+  'pet.done': '全部完成！',
+  'pet.sleeping': 'Zzz...',
+  'pet.error': '哎呀，出错了',
+  'pet.happy': '耶！',
+  'pet.idle1': '今天天气真好~',
+  'pet.idle2': '*伸个懒腰*',
+  'pet.idle3': '*打哈欠*',
+  'pet.drag': '哇啊！',
+  'pet.click': '嘿嘿~',
+  'settings.general': '通用',
+  'settings.themes': '主题',
+  'settings.agents': '代理',
+  'settings.language': '语言',
+  'settings.languageDesc': '显示语言',
+  'settings.appearance': '外观',
+  'settings.behavior': '行为',
+  'settings.petScale': '宠物大小',
+  'settings.petScaleDesc': '宠物在屏幕上的大小',
+  'settings.opacity': '透明度',
+  'settings.opacityDesc': '宠物窗口的透明度',
+  'settings.sleepSequence': '睡眠方式',
+  'settings.sleepFull': '完整（打哈欠 → 困倦 → 睡着）',
+  'settings.sleepDirect': '直接（空闲 → 睡着）',
+  'settings.idleTimeout': '空闲超时',
+  'settings.idleTimeoutDesc': '宠物开始睡眠前的等待时间',
+  'settings.clickReactions': '点击反应',
+  'settings.clickReactionsDesc': '点击宠物时产生反应',
+  'settings.dragToMove': '拖拽移动',
+  'settings.dragToMoveDesc': '拖拽宠物来改变位置',
+  'settings.soundEffects': '音效',
+  'settings.soundEffectsDesc': '状态变化时播放音效',
+  'settings.edgeSnapping': '边缘吸附',
+  'settings.edgeSnappingDesc': '宠物会贴在屏幕边缘',
+  'settings.screenPrivacy': '屏幕隐私',
+  'settings.screenPrivacyDesc': '截屏时宠物不可见',
+  'settings.desktop': '桌面',
+  'settings.alwaysOnTop': '始终置顶',
+  'settings.alwaysOnTopDesc': '宠物保持在其他窗口上方',
+  'settings.interaction': '交互',
+  'settings.sleep': '睡眠',
+  'settings.petCharacter': '宠物角色',
+  'settings.size': '大小与透明度',
+  'settings.hideBubbles': '隐藏气泡',
+  'settings.hideBubblesDesc': '抑制所有聊天气泡',
+  'settings.appearanceMode': '外观模式',
+  'settings.appearanceModeDesc': '跟随系统、浅色或深色',
+  'settings.searchPlaceholder': '搜索设置',
+  'settings.about': '关于',
+};
+
+const ja: LocaleMessages = {
+  'pet.hello': 'こんにちは！UniPetです！',
+  'pet.ready': 'コーディングの準備完了！',
+  'pet.thinking': 'うーん、考えてる...',
+  'pet.working': '頑張って作業中！',
+  'pet.done': '全部完了！',
+  'pet.sleeping': 'Zzz...',
+  'pet.error': 'おっと、エラーが発生しました',
+  'pet.happy': 'やった！',
+  'pet.idle1': '今日はいい天気だね〜',
+  'pet.idle2': '*伸びをする*',
+  'pet.idle3': '*あくびをする*',
+  'pet.drag': 'わーっ！',
+  'pet.click': 'えへへ〜',
+  'settings.general': '一般',
+  'settings.themes': 'テーマ',
+  'settings.agents': 'エージェント',
+  'settings.language': '言語',
+  'settings.languageDesc': '表示言語',
+  'settings.appearance': '外観',
+  'settings.behavior': '動作',
+  'settings.petScale': 'ペットのサイズ',
+  'settings.petScaleDesc': '画面上のペットのサイズ',
+  'settings.opacity': '不透明度',
+  'settings.opacityDesc': 'ペットウィンドウの透明度',
+  'settings.sleepSequence': 'スリープシーケンス',
+  'settings.sleepFull': 'フル（あくび → うとうと → 眠る）',
+  'settings.sleepDirect': '直接（待機 → 眠る）',
+  'settings.idleTimeout': 'スリープまでの時間',
+  'settings.idleTimeoutDesc': 'ペットがスリープを開始するまでの時間',
+  'settings.clickReactions': 'クリック反応',
+  'settings.clickReactionsDesc': 'クリックされたときに反応する',
+  'settings.dragToMove': 'ドラッグで移動',
+  'settings.dragToMoveDesc': 'ドラッグでペットを移動',
+  'settings.soundEffects': '効果音',
+  'settings.soundEffectsDesc': '状態変化時に音を鳴らす',
+  'settings.edgeSnapping': '画面端に吸着',
+  'settings.edgeSnappingDesc': '画面の端にくっつく',
+  'settings.screenPrivacy': '画面プライバシー',
+  'settings.screenPrivacyDesc': 'スクリーンショットに映らない',
+  'settings.desktop': 'デスクトップ',
+  'settings.alwaysOnTop': '常に最前面',
+  'settings.alwaysOnTopDesc': '他のウィンドウより上に表示',
+  'settings.interaction': 'インタラクション',
+  'settings.sleep': 'スリープ',
+  'settings.petCharacter': 'ペットキャラクター',
+  'settings.size': 'サイズと透明度',
+  'settings.hideBubbles': 'バブルを非表示',
+  'settings.hideBubblesDesc': 'すべての吹き出しを抑制',
+  'settings.appearanceMode': '外観モード',
+  'settings.appearanceModeDesc': 'システムに合わせる、ライト、またはダーク',
+  'settings.searchPlaceholder': '設定を検索',
+  'settings.about': 'について',
+};
+
+const ko: LocaleMessages = {
+  'pet.hello': '안녕! 나는 UniPet이야!',
+  'pet.ready': '코딩 준비 완료!',
+  'pet.thinking': '음, 생각해 볼게...',
+  'pet.working': '열심히 작업 중!',
+  'pet.done': '모두 완료!',
+  'pet.sleeping': 'Zzz...',
+  'pet.error': '앗, 문제가 생겼어',
+  'pet.happy': '야호!',
+  'pet.idle1': '오늘 날씨 좋네~',
+  'pet.idle2': '*기지개를 켠다*',
+  'pet.idle3': '*하품한다*',
+  'pet.drag': '와아!',
+  'pet.click': '헤헤~',
+  'settings.general': '일반',
+  'settings.themes': '테마',
+  'settings.agents': '에이전트',
+  'settings.language': '언어',
+  'settings.languageDesc': '표시 언어',
+  'settings.appearance': '외관',
+  'settings.behavior': '동작',
+  'settings.petScale': '펫 크기',
+  'settings.petScaleDesc': '화면 위 펫의 크기',
+  'settings.opacity': '불투명도',
+  'settings.opacityDesc': '펫 창의 투명도',
+  'settings.sleepSequence': '수면 시퀀스',
+  'settings.sleepFull': '풀 (하품 → 졸음 → 수면)',
+  'settings.sleepDirect': '직접 (대기 → 수면)',
+  'settings.idleTimeout': '대기 시간',
+  'settings.idleTimeoutDesc': '펫이 잠들기까지의 시간',
+  'settings.clickReactions': '클릭 반응',
+  'settings.clickReactionsDesc': '클릭하면 반응함',
+  'settings.dragToMove': '드래그로 이동',
+  'settings.dragToMoveDesc': '드래그하여 펫 이동',
+  'settings.soundEffects': '효과음',
+  'settings.soundEffectsDesc': '상태 변경 시 소리 재생',
+  'settings.edgeSnapping': '가장자리 스냅',
+  'settings.edgeSnappingDesc': '화면 가장자리에 붙음',
+  'settings.screenPrivacy': '화면 프라이버시',
+  'settings.screenPrivacyDesc': '스크린샷에 보이지 않음',
+  'settings.desktop': '데스크톱',
+  'settings.alwaysOnTop': '항상 위에',
+  'settings.alwaysOnTopDesc': '다른 창 위에 유지',
+  'settings.interaction': '상호 작용',
+  'settings.sleep': '수면',
+  'settings.petCharacter': '펫 캐릭터',
+  'settings.size': '크기 및 투명도',
+  'settings.hideBubbles': '버블 숨기기',
+  'settings.hideBubblesDesc': '모든 채팅 버블 숨김',
+  'settings.appearanceMode': '외관 모드',
+  'settings.appearanceModeDesc': '시스템에 맞추기, 라이트 또는 다크',
+  'settings.searchPlaceholder': '설정 검색',
+  'settings.about': '정보',
+};
+
+const messages: Record<string, LocaleMessages> = { en, zh, ja, ko };
+
+export type Locale = keyof typeof messages;
+
+const currentLocale = ref<Locale>('zh');
+
+export function useI18n() {
+  /**
+   * Translate a key. Reads currentLocale.value to create reactive dependency.
+   * Falls back to the English message, then to the key itself.
+   */
+  function t(key: string): string {
+    const locale = currentLocale.value;
+    return (messages[locale] as Record<string, string>)?.[key]
+      ?? (messages['en'] as Record<string, string>)?.[key]
+      ?? key;
+  }
+
+  function setLocale(locale: Locale) {
+    if (!messages[locale]) return;
+    currentLocale.value = locale;
+    try { window.unipet?.setSetting('locale', locale); } catch { /* ignore */ }
+  }
+
+  function getLocale(): Locale {
+    return currentLocale.value;
+  }
+
+  function getAvailableLocales(): Array<{ code: Locale; name: string; flag: string }> {
+    return [
+      { code: 'en', name: 'English', flag: '🇬🇧' },
+      { code: 'zh', name: '中文', flag: '🇨🇳' },
+      { code: 'ja', name: '日本語', flag: '🇯🇵' },
+      { code: 'ko', name: '한국어', flag: '🇰🇷' },
+    ];
+  }
+
+  async function loadLocale() {
+    try {
+      const saved = await window.unipet?.getSetting<string>('locale');
+      if (saved && saved in messages) currentLocale.value = saved as Locale;
+    } catch { /* ignore */ }
+  }
+
+  return { t, setLocale, getLocale, getAvailableLocales, currentLocale, loadLocale };
+}

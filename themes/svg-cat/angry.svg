@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <style>
+    .body { fill: #f4a460; } .dark { fill: #c8834a; } .white { fill: #fff8f0; } .nose { fill: #e06060; }
+    @keyframes tremble { 0%,100%{transform:translate(0,0)} 25%{transform:translate(-2px,0)} 50%{transform:translate(2px,-1px)} 75%{transform:translate(-1px,1px)} }
+    @keyframes fire { 0%{transform:scaleY(0.8);opacity:0.8} 50%{transform:scaleY(1.2);opacity:1} 100%{transform:scaleY(0.8);opacity:0.8} }
+    .angry-body { animation: tremble 0.3s linear infinite; }
+    .fire { animation: fire 0.4s ease-in-out infinite; transform-origin: center bottom; }
+  </style>
+  <g class="angry-body">
+    <!-- Flat ears -->
+    <polygon class="body" points="55,62 72,35 92,58"/>
+    <polygon class="body" points="108,58 128,35 145,62"/>
+    <ellipse class="body" cx="100" cy="80" rx="48" ry="40"/>
+    <ellipse class="body" cx="100" cy="140" rx="38" ry="45"/>
+    <ellipse class="white" cx="100" cy="148" rx="28" ry="32"/>
+    <g id="eyes">
+      <!-- Angry brows -->
+      <line x1="72" y1="65" x2="90" y2="70" stroke="#2d1b1b" stroke-width="3" stroke-linecap="round"/>
+      <line x1="128" y1="65" x2="110" y2="70" stroke="#2d1b1b" stroke-width="3" stroke-linecap="round"/>
+      <circle fill="#d03030" cx="82" cy="78" r="6"/>
+      <circle fill="#d03030" cx="118" cy="78" r="6"/>
+      <circle fill="#2d1b1b" cx="82" cy="78" r="3"/>
+      <circle fill="#2d1b1b" cx="118" cy="78" r="3"/>
+    </g>
+    <ellipse class="nose" cx="100" cy="92" rx="4" ry="3"/>
+    <path d="M88,100 L95,96 L100,100 L105,96 L112,100" fill="none" stroke="#d03030" stroke-width="2" stroke-linecap="round"/>
+    <ellipse class="body" cx="75" cy="175" rx="14" ry="8"/>
+    <ellipse class="body" cx="125" cy="175" rx="14" ry="8"/>
+  </g>
+  <!-- Fire above head -->
+  <text class="fire" x="82" y="18" font-size="24">&#x1F525;</text>
+</svg>

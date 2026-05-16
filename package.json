@@ -1,0 +1,23 @@
+{
+  "name": "unipet",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Universal Desktop Pet Framework — support any AI agent",
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "dev": "pnpm --filter @unipet/desktop dev",
+    "clean": "turbo run clean",
+    "install:hooks": "node hooks/install-hooks.js"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0",
+    "typescript": "^5.8.0"
+  },
+  "packageManager": "pnpm@10.0.0",
+  "pnpm": {
+    "onlyBuiltDependencies": ["electron", "electron-winstaller"]
+  }
+}
