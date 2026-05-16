@@ -1,0 +1,194 @@
+# UniPet
+
+**一个桌面宠物，帮你盯着 AI 编程助手 —— 从此你不用亲自动手。**
+
+English · [简体中文](README.zh-CN.md)
+
+[![CI](https://github.com/qaz154/unipet/actions/workflows/ci.yml/badge.svg)](https://github.com/qaz154/unipet/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Electron](https://img.shields.io/badge/Electron-39-47848F?logo=electron)](https://www.electronjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript)](https://www.typescriptlang.org/)
+
+UniPet 常驻在你的桌面上，实时感知你的 AI 助手正在做什么 —— 思考、编码、测试、等待审批、庆祝成功，或者在出错时惊慌失措。
+
+支持 **Claude Code、Codex、Cursor、Gemini CLI、Copilot、Kiro、Kimi** 以及任何兼容 MCP 的智能体。
+
+```
+  ╭──────────╮
+  │  ◕    ◕  │   "测试通过！149/149 ✓"
+  │   ╰──╯   │
+  ╰──────────╯
+```
+
+## 下载
+
+从 [**Releases**](https://github.com/qaz154/unipet/releases/latest) 获取最新构建版本：
+
+| 平台 | 文件 |
+|----------|------|
+| **Windows** | `UniPet.Setup.0.1.0.exe` |
+| **macOS** | `UniPet-0.1.0-arm64.dmg` |
+| **Linux** | `UniPet-0.1.0.AppImage` |
+
+> macOS 首次启动时可能会弹出安全警告。右键点击 -> 打开，或运行：
+> ```
+> xattr -dr com.apple.quarantine /Applications/UniPet.app
+> ```
+
+## 快速开始
+
+### 1. 安装并启动
+
+从 [Releases](https://github.com/qaz154/unipet/releases/latest) 下载并打开应用。你会在桌面上看到一个像素宠物和一个托盘图标。
+
+### 2. 连接你的智能体
+
+```bash
+# 自动检测已安装的智能体并注册钩子
+node hooks/install-hooks.js
+
+# 或仅为指定智能体安装
+node hooks/install-hooks.js --agent claude-code
+node hooks/install-hooks.js --agent codex
+node hooks/install-hooks.js --agent cursor
+```
+
+### 3. 开始编码
+
+宠物会在你的智能体开始工作时自动做出反应。无需任何配置。
+
+## 支持的智能体
+
+| 智能体 | 集成方式 |
+|-------|-------------------|
+| **Claude Code** | Hooks（自动） |
+| **Codex CLI** | Hooks（自动） |
+| **Cursor** | Hooks（自动） |
+| **Gemini CLI** | Hooks（自动） |
+| **Copilot CLI** | Hooks（自动） |
+| **Kiro CLI** | Hooks（自动） |
+| **Kimi CLI** | Hooks（自动） |
+| **OpenCode** | 插件 |
+| **OpenClaw** | 插件 |
+| **Hermes** | 插件 |
+| **任意 MCP 智能体** | MCP Server |
+
+## 功能特性
+
+| 功能 | 说明 |
+|---------|-------------|
+| **24 种视觉状态** | 待机、思考、工作、编辑、测试、出错、开心、喜欢、睡觉…… |
+| **多智能体追踪** | 跨会话的优先级状态解析 |
+| **权限气泡** | 允许 / 拒绝 / 仅一次 按钮 —— 钩子会阻塞直到你做出决定 |
+| **消息气泡** | 智能体消息，自动脱敏密钥 / URL / 路径 |
+| **情感引擎** | PAD 三维情感向量，带自然时间衰减 |
+| **眼神追踪** | 宠物眼睛跟随鼠标光标 |
+| **投掷物理** | 拖拽并甩出宠物 —— 旋转 + 弹跳 |
+| **全局快捷键** | `Ctrl+Shift+Y` = 允许，`Ctrl+Shift+N` = 拒绝 |
+| **迷你模式** | 拖到屏幕边缘 -> 宠物隐藏，悬停时探头 |
+| **入睡序列** | 闲置超时后：打哈欠 -> 打盹 -> 睡着 |
+| **3 种渲染器** | CSS 像素风、SVG、精灵图 |
+| **主题系统** | JSON schema + 变体 + 导入 / 导出 |
+| **音效** | 芯片音风格的状态变化反馈 |
+| **MCP Server** | `npx @unipet/mcp` —— 4 个工具供任意 MCP 智能体使用 |
+| **国际化** | 英语、中文、日语、韩语 |
+| **隐私保护** | `setContentProtection` 在屏幕共享 / 录屏时隐藏宠物 |
+
+## MCP 集成
+
+任何兼容 MCP 的智能体都可以控制宠物：
+
+```json
+{
+  "mcpServers": {
+    "unipet": {
+      "command": "npx",
+      "args": ["-y", "@unipet/mcp"]
+    }
+  }
+}
+```
+
+可用工具：`unipet_status`、`unipet_react`、`unipet_say`、`unipet_move`
+
+## HTTP API
+
+任何智能体都可以通过 HTTP 与宠物通信：
+
+```bash
+# 设置状态
+curl -X POST http://localhost:23333/api/state -d '{"state":"working"}'
+
+# 显示消息气泡
+curl -X POST http://localhost:23333/api/speech -d '{"message":"Hello!"}'
+
+# 桌面通知
+curl -X POST http://localhost:23333/api/notify -d '{"title":"Done","message":"Build passed"}'
+
+# 权限请求（阻塞直到用户响应）
+curl -X POST http://localhost:23333/api/permission \
+  -d '{"permissionId":"p1","toolName":"Bash","message":"Allow rm?"}'
+
+# SSE 事件流
+curl http://localhost:23333/api/events
+```
+
+远程智能体使用 `Authorization: Bearer <token>`，token 存放在 `~/.unipet/auth-token`。
+
+## 架构
+
+```
+┌──────────────────────────────────────────────┐
+│             Electron 桌面应用                  │
+│                                              │
+│  Renderer ←─ StateManager ←─ AgentAdapters   │
+│  (Canvas)    (24-state        (Hook/MCP/     │
+│               priority)        HTTP/Git)     │
+│     ↑            ↑                ↑          │
+│  Emotion    BubbleManager    HTTP Server     │
+│  Engine     (sanitized)      (:23333)        │
+│                                              │
+│  Platform: Electron + Vue 3 + TypeScript     │
+└──────────────────────────────────────────────┘
+```
+
+Monorepo 包：`@unipet/core` · `@unipet/adapters` · `@unipet/renderers` · `@unipet/themes` · `@unipet/mcp-server` · `@unipet/cli` · `@unipet/desktop`
+
+## 开发
+
+```bash
+# 环境要求：Node.js >= 22, pnpm >= 10
+git clone https://github.com/qaz154/unipet.git
+cd unipet
+pnpm install
+pnpm build
+pnpm test              # 149 个测试
+pnpm --filter @unipet/desktop dev  # 开发模式，支持热重载
+```
+
+## 创建主题
+
+```json
+{
+  "schemaVersion": 1,
+  "id": "my-pet",
+  "renderer": "css-pixel",
+  "rendererConfig": {
+    "gridSize": 16, "upscale": 8,
+    "palette": { ".": "transparent", "#": "#000", "W": "#fff" },
+    "body": ["..####..", ".#WWWW#.", "#WWWWWW#", ".#WWWW#.", "..####.."],
+    "faces": { "idle": { "eyes": ["W.W"], "eyePos": { "row": 2, "col": 2 } } }
+  },
+  "states": { "idle": { "files": ["idle"] }, "working": { "files": ["working"] } }
+}
+```
+
+完整的主题 schema 参考请见 [ARCHITECTURE.md](ARCHITECTURE.md)。
+
+## 参与贡献
+
+欢迎提交 PR。请添加测试，遵循现有代码风格，`pnpm test` 必须通过。
+
+## 许可证
+
+[MIT](LICENSE)

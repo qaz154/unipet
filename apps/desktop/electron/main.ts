@@ -108,8 +108,10 @@ function setSetting(key: string, value: unknown): void {
 let renderWin: BrowserWindow | undefined;  // Transparent pet display
 let hitWin: BrowserWindow | undefined;     // Nearly transparent input receiver
 let settingsWindow: BrowserWindow | undefined;
+let dashboardWindow: BrowserWindow | undefined;
 let tray: Tray | undefined;
 let isPaused = false;
+let isDnd = false;
 let currentState = 'idle';
 let isMiniMode = false;
 let miniEdge: 'left' | 'right' | null = null;
@@ -436,6 +438,8 @@ const TRAY_I18N: Record<string, Record<string, string>> = {
     hideBubbles: 'Hide Bubbles', soundFx: '🔊 Sound Effects',
     size: 'Size', sizeS: 'Small', sizeM: 'Medium', sizeL: 'Large',
     settings: '⚙ Settings', checkUpdate: 'Check for Updates', quit: '✕ Quit',
+    dnd: '🌙 Do Not Disturb', dndOff: '🔔 Notifications On',
+    openDashboard: '📊 Sessions Dashboard',
   },
   zh: {
     idle: '空闲', thinking: '思考中...', working: '工作中...',
@@ -447,6 +451,8 @@ const TRAY_I18N: Record<string, Record<string, string>> = {
     hideBubbles: '隐藏气泡', soundFx: '🔊 音效',
     size: '大小', sizeS: '小', sizeM: '中', sizeL: '大',
     settings: '⚙ 设置', checkUpdate: '检查更新', quit: '✕ 退出',
+    dnd: '🌙 勿扰模式', dndOff: '🔔 恢复通知',
+    openDashboard: '📊 会话面板',
   },
   ja: {
     idle: '待機中', thinking: '思考中...', working: '作業中...',
@@ -458,6 +464,8 @@ const TRAY_I18N: Record<string, Record<string, string>> = {
     hideBubbles: 'バブルを非表示', soundFx: '🔊 サウンド', size: 'サイズ',
     sizeS: '小', sizeM: '中', sizeL: '大',
     settings: '⚙ 設定', checkUpdate: '更新確認', quit: '✕ 終了',
+    dnd: '🌙 取り込み中', dndOff: '🔔 通知オン',
+    openDashboard: '📊 セッション',
   },
   ko: {
     idle: '대기', thinking: '생각 중...', working: '작업 중...',
@@ -469,6 +477,8 @@ const TRAY_I18N: Record<string, Record<string, string>> = {
     hideBubbles: '버블 숨기기', soundFx: '🔊 사운드', size: '크기',
     sizeS: '작음', sizeM: '보통', sizeL: '큼',
     settings: '⚙ 설정', checkUpdate: '업데이트 확인', quit: '✕ 종료',
+    dnd: '🌙 방해 금지', dndOff: '🔔 알림 켜기',
+    openDashboard: '📊 세션 대시보드',
   },
 };
 
@@ -518,6 +528,20 @@ function updateTrayMenu(): void {
         updateTrayMenu();
       },
     },
+    {
+      label: isDnd ? tr('dndOff') : tr('dnd'),
+      click: () => {
+        isDnd = !isDnd;
+        renderWin?.webContents.send('pet:dnd-changed', isDnd);
+        hitWin?.webContents.send('pet:dnd-changed', isDnd);
+        if (isDnd) {
+          setSetting('soundEnabled', false);
+          renderWin?.webContents.send('settings:changed', 'soundEnabled', false);
+          hitWin?.webContents.send('settings:changed', 'soundEnabled', false);
+        }
+        updateTrayMenu();
+      },
+    },
     { type: 'separator' },
     {
       label: `${tr('hideBubbles')} ${bubblesHidden ? '✓' : ''}`,
@@ -550,6 +574,7 @@ function updateTrayMenu(): void {
       });
     } },
     { label: tr('settings'), click: () => openSettings() },
+    { label: tr('openDashboard'), click: () => openDashboard() },
     { type: 'separator' },
     { label: tr('quit'), click: () => app.quit() },
   ]);
@@ -633,6 +658,65 @@ function openSettings(): void {
   settingsWindow.on('closed', () => {
     log.info('Settings window closed');
     settingsWindow = undefined;
+  });
+}
+// ─── Dashboard Window ──────────────────────────────────
+
+function openDashboard(): void {
+  if (dashboardWindow && !dashboardWindow.isDestroyed()) {
+    dashboardWindow.show();
+    dashboardWindow.focus();
+    return;
+  }
+
+  dashboardWindow = new BrowserWindow({
+    width: 640,
+    height: 480,
+    minWidth: 480,
+    minHeight: 360,
+    title: 'Sessions Dashboard',
+    show: false,
+    backgroundColor: '#1c1c1f',
+    frame: false,
+    titleBarStyle: 'hidden',
+    webPreferences: {
+      preload: join(dir, '..', 'electron', 'preload.cjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+    },
+  });
+
+  dashboardWindow.setMenuBarVisibility(false);
+  dashboardWindow.center();
+
+  if (process.env['VITE_DEV_SERVER_URL']) {
+    dashboardWindow.loadURL(`${process.env["VITE_DEV_SERVER_URL"]}#/dashboard`);
+  } else {
+    dashboardWindow.loadFile(join(dir, '../dist/index.html'), { hash: '/dashboard' });
+  }
+
+  const showTimeout = setTimeout(() => {
+    log.info('Dashboard fallback show (ready-to-show timeout)');
+    if (dashboardWindow && !dashboardWindow.isDestroyed()) {
+      dashboardWindow.show();
+    }
+  }, 3000);
+
+  dashboardWindow.once('ready-to-show', () => {
+    clearTimeout(showTimeout);
+    log.info('Dashboard ready-to-show, showing window');
+    dashboardWindow?.show();
+    dashboardWindow?.webContents.send('settings:loaded', settings);
+  });
+
+  dashboardWindow.webContents.on('did-finish-load', () => {
+    log.info('Dashboard page finished loading');
+  });
+
+  dashboardWindow.on('closed', () => {
+    log.info('Dashboard window closed');
+    dashboardWindow = undefined;
   });
 }
 
@@ -751,11 +835,18 @@ ipcMain.on('throw-pet', (_e, vx: number, vy: number) => {
 // Settings
 // Permission response from renderer → forwarded back to hook
 ipcMain.handle('pet:permission-response', (_e, permissionId: string, action: string) => {
+  if (isDnd) {
+    log.info('Permission ' + permissionId + ' suppressed (DND mode)');
+    httpServer.resolvePermission(permissionId, 'deny');
+    return { success: true };
+  }
   log.info(`Permission response: ${permissionId} → ${action}`);
   renderWin?.webContents.send('permission:resolved', permissionId, action);
   httpServer.resolvePermission(permissionId, action);
   return { success: true };
 });
+
+ipcMain.handle('pet:is-dnd', () => isDnd);
 
 ipcMain.handle('settings:get', (_e, key: string) => settings[key]);
 ipcMain.handle('settings:set', (_e, key: string, value: unknown) => {
@@ -898,6 +989,23 @@ app.whenReady().then(() => {
     renderWin?.webContents.send('shortcut', 'deny');
   });
 
+  // ── Auto-hooks registration (best-effort) ───────────────────
+  {
+    const hooksScript = join(dir, '..', '..', '..', 'hooks', 'install-hooks.js');
+    execFile(
+      process.execPath,
+      [hooksScript],
+      { timeout: 10000, windowsHide: true, env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } },
+      (err, stdout, stderr) => {
+        if (err) {
+          log.warn('Auto-hooks registration failed (non-blocking):', stderr?.toString() || err.message);
+        } else {
+          log.info('Auto-hooks registration succeeded:', stdout?.toString()?.trim());
+        }
+      },
+    );
+  }
+
   // ── Auto Updater ───────────────────────────────────────
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
@@ -920,5 +1028,6 @@ app.on('before-quit', async () => {
   renderWin?.destroy();
   hitWin?.destroy();
   settingsWindow?.destroy();
+  dashboardWindow?.destroy();
   tray?.destroy();
 });

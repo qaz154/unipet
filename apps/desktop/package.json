@@ -30,7 +30,7 @@
     "@playwright/test": "^1.49.0",
     "@types/node": "^22.0.0",
     "@vitejs/plugin-vue": "^5.2.0",
-    "electron": "^39.8.1",
+    "electron": "^41.0.2",
     "electron-builder": "^26.0.0",
     "typescript": "^5.8.0",
     "vite": "^6.3.0",

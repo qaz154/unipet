@@ -7,6 +7,13 @@
 
 import type { PetState, EmotionVector } from '@unipet/core';
 
+export interface AnimationTier {
+  /** Minimum active sessions to trigger this tier */
+  minSessions: number;
+  /** File(s) to use for this tier */
+  files: string[];
+}
+
 export interface ThemeDefinition {
   schemaVersion: 1;
   id: string;
@@ -34,6 +41,9 @@ export interface ThemeDefinition {
   idleAnimations?: string[];
   /** Click/drag reaction animations */
   reactions?: Record<string, string>;
+  /** Animation tiers based on concurrent session count */
+  workingTiers?: AnimationTier[];
+  jugglingTiers?: AnimationTier[];
 }
 
 export interface StateDefinition {
@@ -170,6 +180,30 @@ export function validateTheme(data: unknown): { valid: boolean; errors: Validati
   if (theme['timings'] !== undefined) {
     if (typeof theme['timings'] !== 'object') {
       errors.push({ path: 'timings', message: 'Must be an object' });
+    }
+  }
+
+  // Validate animation tiers (optional)
+  for (const tierField of ['workingTiers', 'jugglingTiers'] as const) {
+    const tiers = theme[tierField];
+    if (tiers !== undefined) {
+      if (!Array.isArray(tiers)) {
+        errors.push({ path: tierField, message: 'Must be an array of AnimationTier' });
+      } else {
+        for (let i = 0; i < tiers.length; i++) {
+          const tier = tiers[i] as Record<string, unknown>;
+          if (!tier || typeof tier !== 'object') {
+            errors.push({ path: `${tierField}[${i}]`, message: 'Must be an object' });
+            continue;
+          }
+          if (typeof tier['minSessions'] !== 'number' || tier['minSessions'] < 1) {
+            errors.push({ path: `${tierField}[${i}].minSessions`, message: 'Must be a positive number' });
+          }
+          if (!Array.isArray(tier['files'])) {
+            errors.push({ path: `${tierField}[${i}].files`, message: 'Must be an array of file paths' });
+          }
+        }
+      }
     }
   }
 

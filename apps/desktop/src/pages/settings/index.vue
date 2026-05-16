@@ -78,7 +78,7 @@ const tabs = computed(() => [
   { id: 'appearance' as TabId, icon: '🎨', label: t('settings.themes') },
   { id: 'behavior' as TabId, icon: '⚡', label: t('settings.behavior') },
   { id: 'agents' as TabId, icon: '🔗', label: t('settings.agents') },
-  { id: 'about' as TabId, icon: 'ⓘ', label: 'About' },
+  { id: 'about' as TabId, icon: 'ⓘ', label: t('settings.about') },
 ]);
 
 // ─── Search filter ─────────────────────────────────────────
@@ -129,16 +129,16 @@ async function toggleAgent(id: string) {
   if (enabling) {
     settingsStore.enabledAdapters.push(id);
     agentInstalling.value = id;
-    agentStatus.value[id] = 'Installing...';
+    agentStatus.value[id] = t('status.installing');
 
     try {
       const ep = window.unipet;
       if (ep?.installAgent) {
         const result = await ep.installAgent(id);
         if (result?.success) {
-          agentStatus.value[id] = 'Installed ✓';
+          agentStatus.value[id] = t('status.installed');
         } else {
-          agentStatus.value[id] = `Error: ${result?.error || 'Unknown'}`;
+          agentStatus.value[id] = `${t('status.error')}: ${result?.error || 'Unknown'}`;
           settingsStore.enabledAdapters.splice(settingsStore.enabledAdapters.indexOf(id), 1);
         }
       } else {
@@ -153,7 +153,7 @@ async function toggleAgent(id: string) {
     }
   } else {
     settingsStore.enabledAdapters.splice(idx, 1);
-    agentStatus.value[id] = 'Disabled';
+    agentStatus.value[id] = t('status.disabled');
     setTimeout(() => { delete agentStatus.value[id]; }, 2000);
   }
 }

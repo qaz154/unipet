@@ -1,5 +1,7 @@
 # UniPet
 
+English · [简体中文](README.zh-CN.md)
+
 **A desktop pet that watches your AI coding agents — so you don't have to.**
 
 [![CI](https://github.com/qaz154/unipet/actions/workflows/ci.yml/badge.svg)](https://github.com/qaz154/unipet/actions/workflows/ci.yml)
@@ -89,7 +91,7 @@ The pet automatically reacts when your agent starts working. No configuration ne
 | **Theme System** | JSON schema + variants + import/export |
 | **Sound Effects** | Chiptune-style feedback for state changes |
 | **MCP Server** | `npx @unipet/mcp` — 4 tools for any MCP agent |
-| **i18n** | English, Chinese, Japanese, Korean |
+| **i18n** | English, 简体中文, 繁體中文, 日本語, 한국어 |
 | **Privacy** | `setContentProtection` hides pet from screen capture |
 
 ## MCP Integration

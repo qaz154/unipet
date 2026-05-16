@@ -64,6 +64,10 @@ const en = {
   'settings.appearanceModeDesc': 'Match system, light, or dark',
   'settings.searchPlaceholder': 'Search settings',
   'settings.about': 'About',
+  'status.installing': 'Installing...',
+  'status.installed': 'Installed ✓',
+  'status.error': 'Error',
+  'status.disabled': 'Disabled',
 } as const;
 
 type MessageKey = keyof typeof en;
@@ -122,6 +126,10 @@ const zh: LocaleMessages = {
   'settings.appearanceModeDesc': '跟随系统、浅色或深色',
   'settings.searchPlaceholder': '搜索设置',
   'settings.about': '关于',
+  'status.installing': '安装中...',
+  'status.installed': '已安装 ✓',
+  'status.error': '错误',
+  'status.disabled': '已禁用',
 };
 
 const ja: LocaleMessages = {
@@ -177,6 +185,10 @@ const ja: LocaleMessages = {
   'settings.appearanceModeDesc': 'システムに合わせる、ライト、またはダーク',
   'settings.searchPlaceholder': '設定を検索',
   'settings.about': 'について',
+  'status.installing': 'インストール中...',
+  'status.installed': 'インストール済み ✓',
+  'status.error': 'エラー',
+  'status.disabled': '無効',
 };
 
 const ko: LocaleMessages = {
@@ -232,9 +244,72 @@ const ko: LocaleMessages = {
   'settings.appearanceModeDesc': '시스템에 맞추기, 라이트 또는 다크',
   'settings.searchPlaceholder': '설정 검색',
   'settings.about': '정보',
+  'status.installing': '설치 중...',
+  'status.installed': '설치 완료 ✓',
+  'status.error': '오류',
+  'status.disabled': '비활성화',
 };
 
-const messages: Record<string, LocaleMessages> = { en, zh, ja, ko };
+const zhTw: LocaleMessages = {
+  'pet.hello': '你好！我是 UniPet！',
+  'pet.ready': '準備好寫程式了！',
+  'pet.thinking': '嗯，讓我想想...',
+  'pet.working': '努力工作中！',
+  'pet.done': '全部完成！',
+  'pet.sleeping': 'Zzz...',
+  'pet.error': '哎呀，出錯了',
+  'pet.happy': '耶！',
+  'pet.idle1': '今天天氣真好~',
+  'pet.idle2': '*伸個懶腰*',
+  'pet.idle3': '*打哈欠*',
+  'pet.drag': '哇啊！',
+  'pet.click': '嘿嘿~',
+  'settings.general': '通用',
+  'settings.themes': '主題',
+  'settings.agents': '代理',
+  'settings.language': '語言',
+  'settings.languageDesc': '顯示語言',
+  'settings.appearance': '外觀',
+  'settings.behavior': '行為',
+  'settings.petScale': '寵物大小',
+  'settings.petScaleDesc': '寵物在螢幕上的大小',
+  'settings.opacity': '透明度',
+  'settings.opacityDesc': '寵物視窗的透明度',
+  'settings.sleepSequence': '睡眠方式',
+  'settings.sleepFull': '完整（打哈欠 → 困倦 → 睡著）',
+  'settings.sleepDirect': '直接（閒置 → 睡著）',
+  'settings.idleTimeout': '閒置超時',
+  'settings.idleTimeoutDesc': '寵物開始睡眠前的等待時間',
+  'settings.clickReactions': '點擊反應',
+  'settings.clickReactionsDesc': '點擊寵物時產生反應',
+  'settings.dragToMove': '拖拽移動',
+  'settings.dragToMoveDesc': '拖拽寵物來改變位置',
+  'settings.soundEffects': '音效',
+  'settings.soundEffectsDesc': '狀態變化時播放音效',
+  'settings.edgeSnapping': '邊緣吸附',
+  'settings.edgeSnappingDesc': '寵物會貼在螢幕邊緣',
+  'settings.screenPrivacy': '螢幕隱私',
+  'settings.screenPrivacyDesc': '截屏時寵物不可見',
+  'settings.desktop': '桌面',
+  'settings.alwaysOnTop': '始終置頂',
+  'settings.alwaysOnTopDesc': '寵物保持在其他視窗上方',
+  'settings.interaction': '互動',
+  'settings.sleep': '睡眠',
+  'settings.petCharacter': '寵物角色',
+  'settings.size': '大小與透明度',
+  'settings.hideBubbles': '隱藏氣泡',
+  'settings.hideBubblesDesc': '抑制所有聊天氣泡',
+  'settings.appearanceMode': '外觀模式',
+  'settings.appearanceModeDesc': '跟隨系統、淺色或深色',
+  'settings.searchPlaceholder': '搜尋設定',
+  'settings.about': '關於',
+  'status.installing': '安裝中...',
+  'status.installed': '已安裝 ✓',
+  'status.error': '錯誤',
+  'status.disabled': '已停用',
+};
+
+const messages: Record<string, LocaleMessages> = { en, zh, 'zh-TW': zhTw, ja, ko };
 
 export type Locale = keyof typeof messages;
 
@@ -266,6 +341,7 @@ export function useI18n() {
     return [
       { code: 'en', name: 'English', flag: '🇬🇧' },
       { code: 'zh', name: '中文', flag: '🇨🇳' },
+      { code: 'zh-TW', name: '繁體中文', flag: '🇹🇼' },
       { code: 'ja', name: '日本語', flag: '🇯🇵' },
       { code: 'ko', name: '한국어', flag: '🇰🇷' },
     ];

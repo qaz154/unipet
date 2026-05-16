@@ -10,7 +10,8 @@
     "typecheck": "turbo run typecheck",
     "dev": "pnpm --filter @unipet/desktop dev",
     "clean": "turbo run clean",
-    "install:hooks": "node hooks/install-hooks.js"
+    "install:hooks": "node hooks/install-hooks.js",
+    "start": "pnpm install && pnpm build && pnpm --filter @unipet/desktop dev"
   },
   "devDependencies": {
     "turbo": "^2.5.0",
@@ -18,6 +19,9 @@
   },
   "packageManager": "pnpm@10.0.0",
   "pnpm": {
-    "onlyBuiltDependencies": ["electron", "electron-winstaller"]
+    "onlyBuiltDependencies": [
+      "electron",
+      "electron-winstaller"
+    ]
   }
 }
