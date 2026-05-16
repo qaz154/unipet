@@ -31,7 +31,7 @@ Thumbs.db
 progress.txt
 prd.json
 tools/
-scripts/
+/scripts/
 
 # Electron
 out/

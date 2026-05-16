@@ -144,7 +144,7 @@ function scale(src, dstW, dstH) {
   return { w: dstW, h: dstH, pixels: out };
 }
 
-// ─── ICO writer (single PNG payload, 32×32) ────────────
+// ─── ICO writer (single PNG payload, 256×256) ───────────
 function writeIco(pngBuf) {
   // ICONDIR header
   const dir = Buffer.alloc(6);
@@ -152,9 +152,9 @@ function writeIco(pngBuf) {
   dir.writeUInt16LE(1, 2);      // type = icon
   dir.writeUInt16LE(1, 4);      // count
 
-  // ICONDIRENTRY
+  // ICONDIRENTRY — width/height 0 means 256 in ICO format
   const entry = Buffer.alloc(16);
-  entry[0] = 32; entry[1] = 32; // width / height (0 means 256)
+  entry[0] = 0; entry[1] = 0;   // 0 = 256 for both width and height
   entry[2] = 0;                  // colors
   entry[3] = 0;                  // reserved
   entry.writeUInt16LE(1, 4);    // planes
@@ -189,9 +189,9 @@ console.log('  ✓ icon.png (256×256)');
 writeFileSync(join(PUBLIC_DIR, 'icon.icns'), appPng);
 console.log('  ✓ icon.icns (PNG fallback — replace with real ICNS for mac release)');
 
-// 32×32 ICO with PNG payload — Windows Vista+
-const icoPng32 = encodePNG(tray32.w, tray32.h, tray32.pixels);
-writeFileSync(join(PUBLIC_DIR, 'icon.ico'), writeIco(icoPng32));
-console.log('  ✓ icon.ico (32×32 PNG-payload ICO)');
+// 256×256 ICO with PNG payload — required by electron-builder
+const icoPng256 = encodePNG(icon256.w, icon256.h, icon256.pixels);
+writeFileSync(join(PUBLIC_DIR, 'icon.ico'), writeIco(icoPng256));
+console.log('  ✓ icon.ico (256×256 PNG-payload ICO)');
 
 console.log('\nAll icons written to', PUBLIC_DIR);
