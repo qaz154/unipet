@@ -111,7 +111,7 @@
 │  ┌──────────────────────────────────────────────────────────────┐  │
 │  │                  Platform Layer (Electron)                     │  │
 │  │  • 透明窗口 (BrowserWindow transparent)                       │  │
-│  │  • 双窗口架构 (render + hit)                                  │  │
+│  │  • 单窗口直接处理输入（render window handles pointer events）  │  │
 │  │  • 系统托盘 (Tray + i18n)                                     │  │
 │  │  • HTTP Server (localhost:23333)                              │  │
 │  │  • 配置持久化 (~/.unipet/settings.json)                       │  │
@@ -580,7 +580,7 @@ unipet/
 ├── apps/
 │   └── desktop/                    # Electron 36 桌面应用
 │       ├── electron/               # Electron 主进程
-│       │   ├── main.ts             # 双窗口架构 + 系统托盘 + IPC
+│       │   ├── main.ts             # 窗口管理 + 系统托盘 + IPC
 │       │   ├── preload.ts          # contextBridge 预加载
 │       │   └── http-server.ts      # localhost HTTP Server
 │       ├── src/                    # Vue 3 渲染进程
