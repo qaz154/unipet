@@ -93,6 +93,11 @@ The pet automatically reacts when your agent starts working. No configuration ne
 | **MCP Server** | `npx @unipet/mcp` — 4 tools for any MCP agent |
 | **i18n** | English, 简体中文, 繁體中文, 日本語, 한국어 |
 | **Privacy** | `setContentProtection` hides pet from screen capture |
+| **Sessions Dashboard** | View active agent sessions, events, jump to terminal |
+| **DND Mode** | Do Not Disturb — auto-mute, suppress permission bubbles |
+| **Auto Hooks** | Hooks auto-register on app startup (best-effort) |
+| **Theme Tools** | `create-theme.mjs` scaffold + `validate-theme.mjs` checker |
+| **Tier Animations** | `workingTiers` / `jugglingTiers` — animations scale with sessions |
 
 ## MCP Integration
 
@@ -160,6 +165,8 @@ Monorepo: `@unipet/core` · `@unipet/adapters` · `@unipet/renderers` · `@unipe
 # Requirements: Node.js >= 22, pnpm >= 10
 git clone https://github.com/qaz154/unipet.git
 cd unipet
+pnpm start              # One-command: install + build + dev
+# Or step by step:
 pnpm install
 pnpm build
 pnpm test              # 149 tests

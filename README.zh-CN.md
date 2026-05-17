@@ -91,8 +91,13 @@ node hooks/install-hooks.js --agent cursor
 | **主题系统** | JSON schema + 变体 + 导入 / 导出 |
 | **音效** | 芯片音风格的状态变化反馈 |
 | **MCP Server** | `npx @unipet/mcp` —— 4 个工具供任意 MCP 智能体使用 |
-| **国际化** | 英语、中文、日语、韩语 |
+| **国际化** | English、简体中文、繁體中文、日本語、한국어 |
 | **隐私保护** | `setContentProtection` 在屏幕共享 / 录屏时隐藏宠物 |
+| **会话面板** | 查看活跃智能体会话、事件历史、跳转到终端 |
+| **免打扰模式** | 自动静音、抑制权限气泡 |
+| **自动注册 Hooks** | 应用启动时自动安装 hooks（尽力而为） |
+| **主题工具** | `create-theme.mjs` 脚手架 + `validate-theme.mjs` 验证器 |
+| **分级动画** | `workingTiers` / `jugglingTiers` —— 根据会话数切换动画 |
 
 ## MCP 集成
 
@@ -160,6 +165,8 @@ Monorepo 包：`@unipet/core` · `@unipet/adapters` · `@unipet/renderers` · `@
 # 环境要求：Node.js >= 22, pnpm >= 10
 git clone https://github.com/qaz154/unipet.git
 cd unipet
+pnpm start              # 一键：安装 + 构建 + 启动开发
+# 或者分步执行：
 pnpm install
 pnpm build
 pnpm test              # 149 个测试
