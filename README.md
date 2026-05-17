@@ -6,8 +6,8 @@ English · [简体中文](README.zh-CN.md)
 
 [![CI](https://github.com/qaz154/unipet/actions/workflows/ci.yml/badge.svg)](https://github.com/qaz154/unipet/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Electron](https://img.shields.io/badge/Electron-39-47848F?logo=electron)](https://www.electronjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript)](https://www.typescriptlang.org/)
+[![Electron](https://img.shields.io/badge/Electron-41-47848F?logo=electron)](https://www.electronjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6?logo=typescript)](https://www.typescriptlang.org/)
 
 UniPet sits on your desktop and reacts in real-time to what your AI agents are doing — thinking, coding, testing, waiting for approval, celebrating success, or panicking on errors.
 
@@ -26,9 +26,9 @@ Get the latest build from [**Releases**](https://github.com/qaz154/unipet/releas
 
 | Platform | File |
 |----------|------|
-| **Windows** | `UniPet.Setup.0.1.3.exe` |
-| **macOS** | `UniPet-0.1.3-arm64.dmg` |
-| **Linux** | `UniPet-0.1.3.AppImage` |
+| **Windows** | `UniPet.Setup.0.1.4.exe` |
+| **macOS** | `UniPet-0.1.4-arm64.dmg` |
+| **Linux** | `UniPet-0.1.4.AppImage` |
 
 > macOS may show a security warning on first launch. Right-click → Open, or run:
 > ```
