@@ -21,6 +21,8 @@ import { useSettingsStore } from '../../stores/settings';
 import { useI18n } from '../../composables/useI18n';
 import { useTheme } from '../../composables/useTheme';
 import { PET_CHARACTERS, PW, PH, type PetCharacter } from '../../lib/pet-characters';
+import { useBubble } from '../../composables/useBubble';
+import { useParticles } from '../../composables/useParticles';
 import { startEnabledAdapters, stopAllAdapters } from '../../lib/adapters';
 
 /** Dynamic getter — avoids stale reference after HMR or timing issues */
@@ -57,12 +59,9 @@ function buildStateFiles(themeId: string, states: Record<string, { files: string
 
 const petStore = usePetStore();
 const settingsStore = useSettingsStore();
-const bubbleText = ref('');
-const bubbleVisible = ref('');
-const bubbleChars = ref('');
-const bubbleKind = ref<'speech' | 'permission'>('speech');
-const bubblePermissionId = ref('');
-const bubblePermissionTool = ref('');
+const bubble = useBubble({ hideBubbles: () => settingsStore.hideBubbles });
+const { bubbleVisible, bubbleChars, bubbleKind, bubblePermissionId } = bubble;
+const particleSystem = useParticles(PW, PH);
 const isMiniMode = ref(false);
 
 // Character selection — built-ins + user-imported (not mutated globally)
@@ -260,29 +259,7 @@ function onClick() {
   }, 1500);
 }
 
-// ─── Particles ────────────────────────────────────────
-
-interface Particle { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; color: string; }
-const particles: Particle[] = [];
-
-function emitParticle(state: string) {
-  if (Math.random() > 0.03) return;
-  if (state === 'sleeping' || state === 'dozing') {
-    particles.push({ x: PW / 2 + (Math.random() - 0.5) * 8, y: -2, vx: 0.3, vy: -0.4, life: 0, maxLife: 3, color: '#9a98a2' });
-  } else if (state === 'happy' || state === 'love' || state === 'celebrating') {
-    particles.push({ x: Math.random() * PW, y: Math.random() * PH * 0.5, vx: (Math.random() - 0.5) * 0.3, vy: -0.2, life: 0, maxLife: 1.5, color: state === 'love' ? '#e07050' : '#e8b848' });
-  } else if (state === 'error') {
-    particles.push({ x: Math.random() * PW, y: Math.random() * PH, vx: (Math.random() - 0.5) * 0.5, vy: -0.3, life: 0, maxLife: 1, color: '#d05050' });
-  }
-}
-
-function updateParticles(dt: number) {
-  for (let i = particles.length - 1; i >= 0; i--) {
-    const p = particles[i]; p.x += p.vx; p.y += p.vy; p.life += dt;
-    if (p.life > p.maxLife) particles.splice(i, 1);
-  }
-  while (particles.length > 15) particles.shift();
-}
+// ─── Particles (delegated to useParticles composable) ──
 
 // ─── Animation State ──────────────────────────────────
 
@@ -367,8 +344,8 @@ function tick() {
   lerpEyes();
 
   // Particles
-  emitParticle(state);
-  updateParticles(dt);
+  particleSystem.emit(state);
+  particleSystem.update(dt);
 
   // Update tick rate based on activity
   updateTickRate();
@@ -433,7 +410,7 @@ function render() {
   ctx.restore();
 
   // Particles overlay (scaled)
-  for (const p of particles) {
+  for (const p of particleSystem.getAll()) {
     const alpha = Math.max(0, 1 - p.life / p.maxLife);
     ctx.fillStyle = p.color;
     ctx.globalAlpha = alpha * 0.7;
@@ -574,44 +551,15 @@ function onFileImport(e: Event) {
   input.value = '';
 }
 
-// ─── Bubble ───────────────────────────────────────────
-
-let typewriterTimer: ReturnType<typeof setTimeout> | null = null;
-let bubbleDismissTimer: ReturnType<typeof setTimeout> | null = null;
-
-function showBubble(text: string) {
-  if (settingsStore.hideBubbles) return;
-  if (bubbleKind.value === 'permission' && bubblePermissionId.value) return;
-  if (typewriterTimer) { clearTimeout(typewriterTimer); typewriterTimer = null; }
-  if (bubbleDismissTimer) { clearTimeout(bubbleDismissTimer); bubbleDismissTimer = null; }
-  bubbleKind.value = 'speech';
-  bubblePermissionId.value = '';
-  bubbleVisible.value = text;
-  bubbleChars.value = '';
-  bubbleText.value = text;
-  let i = 0; const sp = Math.max(20, 60 - text.length);
-  const tp = () => { if (i < text.length) { bubbleChars.value += text[i]; i++; typewriterTimer = setTimeout(tp, sp); } };
-  tp();
-  bubbleDismissTimer = setTimeout(() => { if (bubbleKind.value === 'speech') bubbleVisible.value = ''; }, 2500 + text.length * 30);
-}
-
-function showPermissionBubble(permissionId: string, toolName: string, message: string) {
-  if (typewriterTimer) { clearTimeout(typewriterTimer); typewriterTimer = null; }
-  if (bubbleDismissTimer) { clearTimeout(bubbleDismissTimer); bubbleDismissTimer = null; }
-  bubbleKind.value = 'permission';
-  bubblePermissionId.value = permissionId;
-  bubblePermissionTool.value = toolName;
-  bubbleVisible.value = message;
-  bubbleChars.value = message;
-}
+// ─── Bubble (delegated to useBubble composable) ──────
+const showBubble = bubble.show;
+const showPermissionBubble = bubble.showPermission;
 
 function dismissPermission(action: string) {
-  const permId = bubblePermissionId.value;
-  if (!permId) return;
-  bubbleVisible.value = '';
-  bubblePermissionId.value = '';
-  bubbleKind.value = 'speech';
-  getEp()?.invoke?.('pet:permission-response', permId, action).catch(() => {});
+  const result = bubble.dismissPermission(action);
+  if (result) {
+    getEp()?.invoke?.('pet:permission-response', result.permissionId, result.action).catch(() => {});
+  }
 }
 
 // ─── Settings Navigation ────────────────────────────────
@@ -860,11 +808,11 @@ onUnmounted(() => {
     spriteRenderer.destroy();
     spriteRenderer = null;
   }
-  if (typewriterTimer) clearTimeout(typewriterTimer);
-  if (bubbleDismissTimer) clearTimeout(bubbleDismissTimer);
+  bubble.destroy();
   emotionEngine?.stop();
   stateManager?.reset();
   stopAllAdapters().catch(() => { /* ignore */ });
+  soundPlayer.destroy();
   coreBus?.clear?.();
   for (const tm of demoTimers) clearTimeout(tm);
   demoTimers.length = 0;
