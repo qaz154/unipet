@@ -65,7 +65,7 @@ export async function callIPC(
     'status': { path: '/api/status', method: 'GET' },
     'pet.react': { path: '/api/state', method: 'POST' },
     'pet.say': { path: '/api/speech', method: 'POST' },
-    'pet.move': { path: '/api/state', method: 'POST' },
+    'pet.move': { path: '/api/move', method: 'POST' },
   };
 
   const endpoint = endpointMap[method];

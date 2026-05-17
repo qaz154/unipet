@@ -1,10 +1,9 @@
 /**
  * Ambient type declarations for the preload-exposed APIs.
  *
- * The preload script (`electron/preload.ts`) puts `window.unipet`, and
- * `electron/preload-hit.js` puts `window.hitAPI`. Without this declaration,
- * every renderer-side access required `(window as any).unipet.foo`, which
- * silently lost type safety throughout the codebase.
+ * The preload script (`electron/preload.ts`) puts `window.unipet`.
+ * Without this declaration, every renderer-side access required `(window as any).unipet.foo`,
+ * which silently lost type safety throughout the codebase.
  */
 
 export type UniPetEventChannel =
@@ -13,6 +12,7 @@ export type UniPetEventChannel =
   | 'pet:mini-mode'
   | 'pet:size-changed'
   | 'pet:clicked'
+  | 'permission:resolved'
   | 'settings:loaded'
   | 'settings:changed'
   | 'mouse-move'
@@ -28,6 +28,11 @@ export interface UniPetBridge {
   move: (x: number, y: number) => Promise<void>;
   startDrag: () => Promise<void>;
   getPosition: () => Promise<[number, number]>;
+
+  // Fire-and-forget drag (no await, smooth)
+  dragLock: (cursorX: number, cursorY: number) => void;
+  dragMove: (cursorX: number, cursorY: number) => void;
+  dragEnd: () => void;
   setAlwaysOnTop: (enabled: boolean) => Promise<void>;
   setClickThrough: (enabled: boolean) => Promise<void>;
   setContentProtection: (enabled: boolean) => Promise<void>;
@@ -61,23 +66,10 @@ export interface UniPetBridge {
   on: (channel: UniPetEventChannel, callback: (...args: unknown[]) => void) => void;
 }
 
-export interface HitAPI {
-  dragLock: (cursorX: number, cursorY: number) => void;
-  dragMove: (cursorX: number, cursorY: number) => void;
-  dragEnd: () => void;
-  click: (x: number, y: number) => void;
-  contextMenu: () => void;
-  openSettings: () => void;
-  mouseMove: (x: number, y: number) => void;
-  on: (channel: string, callback: (...args: unknown[]) => void) => void;
-}
-
 declare global {
   interface Window {
     /** Defined by `electron/preload.ts` in the renderer/settings windows. */
     unipet?: UniPetBridge;
-    /** Defined by `electron/preload-hit.js` in the hit window only. */
-    hitAPI?: HitAPI;
   }
 }
 

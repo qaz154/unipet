@@ -14,7 +14,7 @@
  */
 
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
-import { EventBus, StateManager, EmotionEngine, BubbleManager } from '@unipet/core';
+import { EventBus, StateManager, EmotionEngine, BubbleManager, STATE_PRIORITY } from '@unipet/core';
 import type { PetState } from '@unipet/core';
 import { SVGRenderer } from '@unipet/renderers';
 import { usePetStore } from '../../stores/pet';
@@ -103,17 +103,12 @@ interface Session {
 const sessions = new Map<string, Session>();
 const MAX_SESSIONS = 20;
 
-const STATE_PRIORITY: Record<string, number> = {
-  sleeping: 0, idle: 1, thinking: 2, working: 3, editing: 3,
-  juggling: 4, carrying: 4, attention: 5, sweeping: 6,
-  notification: 7, error: 8, happy: 9, love: 10, celebrating: 11,
-};
-
 function resolveDisplayState(): string {
   let bestState = 'idle';
   let bestPriority = -1;
   for (const [, session] of sessions) {
-    const p = STATE_PRIORITY[session.state] ?? 1;
+    const priorityMap: Record<string, number> = STATE_PRIORITY;
+    const p = priorityMap[session.state] ?? 1;
     if (p > bestPriority) {
       bestPriority = p;
       bestState = session.state;
@@ -186,10 +181,12 @@ function updateTickRate() {
     nextMs = FAST_TICK_MS;
   } else if (now - lastMouseTime < 2000) {
     nextMs = BOOST_TICK_MS;
-  } else if (petStore.currentState === 'idle' || petStore.currentState === 'sleeping') {
+  } else if (petStore.currentState === 'sleeping') {
+    nextMs = LOW_POWER_TICK_MS;
+  } else if (petStore.currentState === 'idle') {
     nextMs = IDLE_TICK_MS;
   } else {
-    nextMs = LOW_POWER_TICK_MS;
+    nextMs = BOOST_TICK_MS;
   }
 
   // Only restart interval if the rate actually changed (avoid interval churn)
@@ -622,6 +619,46 @@ function openSettings() {
   getEp()?.openSettings();
 }
 
+// ─── Direct Drag (smooth manual window move) ─────────
+let dragActive = false;
+let dragDidMove = false;
+const DRAG_THRESHOLD = 3;
+let dragStartX = 0;
+let dragStartY = 0;
+
+function onDragStart(e: PointerEvent) {
+  dragStartX = e.screenX;
+  dragStartY = e.screenY;
+  dragDidMove = false;
+  dragActive = true;
+  getEp()?.dragLock(e.screenX, e.screenY);
+  (e.currentTarget as HTMLElement)?.setPointerCapture(e.pointerId);
+}
+
+function onDragMove(e: PointerEvent) {
+  if (!dragActive) {
+    mouseX = e.screenX;
+    mouseY = e.screenY;
+    lastMouseTime = Date.now();
+    updateEyeTarget();
+    return;
+  }
+  const dx = e.screenX - dragStartX;
+  const dy = e.screenY - dragStartY;
+  if (!dragDidMove && Math.abs(dx) + Math.abs(dy) < DRAG_THRESHOLD) return;
+  dragDidMove = true;
+  isDrag = true;
+  getEp()?.dragMove(e.screenX, e.screenY);
+}
+
+function onDragEnd(e: PointerEvent) {
+  if (!dragActive) return;
+  dragActive = false;
+  isDrag = false;
+  getEp()?.dragEnd();
+  try { (e.currentTarget as HTMLElement)?.releasePointerCapture(e.pointerId); } catch {}
+}
+
 // ─── Scale Reactivity ─────────────────────────────────
 
 function applyScaleOpacity() {
@@ -650,7 +687,7 @@ const demoTimers: ReturnType<typeof setTimeout>[] = [];
 
 onMounted(async () => {
   // Determine render mode from active theme
-  const activeTheme = themeLoader.get('svg-cat') || themeLoader.getActive();
+  const activeTheme = themeLoader.getActive() || themeLoader.get('svg-cat');
   if (activeTheme && activeTheme.renderer === 'svg') {
     renderMode.value = 'svg';
   }
@@ -808,7 +845,10 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="pet-root" :class="{ mini: isMiniMode }">
+  <div class="pet-root" :class="{ mini: isMiniMode }"
+       @pointerdown.left="onDragStart"
+       @pointermove="onDragMove"
+       @pointerup="onDragEnd">
     <div class="pet-shadow" />
     <!-- SVG renderer container (when theme.renderer === 'svg') -->
     <div
@@ -867,21 +907,10 @@ onUnmounted(() => {
   position: relative; display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   width: 100vw; height: 100vh; background: transparent;
-  /* Subtle glow behind the pet so it's visible on any desktop background */
   border-radius: 4px;
+  cursor: grab;
 }
-.pet-root::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: radial-gradient(ellipse at 50% 70%,
-    rgba(180,160,220,0.18) 0%,
-    rgba(140,120,180,0.08) 40%,
-    transparent 70%);
-  pointer-events: none;
-  z-index: 0;
-}
+.pet-root:active { cursor: grabbing; }
 .pet-root.mini { opacity: 0.7; }
 
 .pet-shadow {
@@ -911,7 +940,6 @@ onUnmounted(() => {
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
-  filter: drop-shadow(0 2px 6px rgba(80,60,120,0.20));
   position: relative;
   z-index: 2;
   display: block;
@@ -953,6 +981,7 @@ onUnmounted(() => {
 .speech-bubble.permission .cursor { display: none; }
 .permission-btns { display: flex; gap: 6px; margin-top: 6px; justify-content: center; }
 .perm-btn {
+  -webkit-app-region: no-drag;
   border: none; border-radius: 6px; padding: 3px 10px; font-size: 11px;
   font-weight: 600; cursor: pointer; transition: background 0.15s;
   color: #fff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;

@@ -36,7 +36,7 @@ export function createMCPServer(config?: MCPServerConfig): McpServer {
   currentConfig = config;
   const server = new McpServer({
     name: 'unipet',
-    version: '0.1.0',
+    version: '0.1.2',
   });
 
   // ─── Tool: unipet_status ──────────────────────────────────

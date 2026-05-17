@@ -69,17 +69,16 @@ export async function waitForDiscovery(
   throw new Error(`Discovery file not written within ${timeoutMs}ms: ${discoveryPath}`);
 }
 
-/** Identify which loaded window is the render window vs the hit window. */
+/** Identify the render window from all open windows. */
 export async function classifyWindows(app: ElectronApplication) {
   const pages = app.windows();
-  if (pages.length < 2) {
-    throw new Error(`Expected at least 2 windows (render + hit), got ${pages.length}`);
+  if (pages.length === 0) {
+    throw new Error('Expected at least 1 window (render), got 0');
   }
-  const classified: Array<{ kind: 'render' | 'hit' | 'unknown'; page: typeof pages[number] }> = [];
+  const classified: Array<{ kind: 'render' | 'unknown'; page: typeof pages[number] }> = [];
   for (const page of pages) {
     const url = page.url();
-    if (url.includes('hit.html')) classified.push({ kind: 'hit', page });
-    else if (url.includes('index.html') || url.startsWith('http://localhost')) {
+    if (url.includes('index.html') || url.startsWith('http://localhost')) {
       classified.push({ kind: 'render', page });
     } else {
       classified.push({ kind: 'unknown', page });
@@ -88,7 +87,6 @@ export async function classifyWindows(app: ElectronApplication) {
   return {
     all: classified,
     render: classified.find((c) => c.kind === 'render')?.page,
-    hit: classified.find((c) => c.kind === 'hit')?.page,
   };
 }
 

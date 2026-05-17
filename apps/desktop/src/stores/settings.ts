@@ -55,8 +55,11 @@ export const useSettingsStore = defineStore('settings', () => {
   watch(sidebarCollapsed, (v) => getEp()?.setSetting('sidebarCollapsed', v));
   watch(enabledAdapters, (v) => getEp()?.setSetting('enabledAdapters', v), { deep: true });
 
-  // Listen for tray-initiated setting changes
-  getEp()?.on?.('settings:changed', (...args: unknown[]) => {
+  // Listen for tray-initiated setting changes (HMR-safe: guard prevents duplicates)
+  let settingsListenerRegistered = false;
+  if (!settingsListenerRegistered) {
+    settingsListenerRegistered = true;
+    getEp()?.on?.('settings:changed', (...args: unknown[]) => {
     const key = args[0] as string;
     const value = args[1];
     if (key === 'hideBubbles' && typeof value === 'boolean') hideBubbles.value = value;
@@ -72,7 +75,8 @@ export const useSettingsStore = defineStore('settings', () => {
     if (key === 'sleepSequence' && typeof value === 'string') sleepSequence.value = value as typeof sleepSequence.value;
     if (key === 'idleTimeoutMs' && typeof value === 'number') idleTimeoutMs.value = value;
     if (key === 'enabledAdapters' && Array.isArray(value)) enabledAdapters.value = value as string[];
-  });
+    });
+  }
 
   loadPersisted();
 

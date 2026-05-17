@@ -12,10 +12,19 @@ import { join } from 'path';
 import { homedir } from 'os';
 import { randomBytes } from 'crypto';
 import { Notification } from 'electron';
-import { isExternallyAllowedState, sanitizeBubbleText, DEFAULT_HTTP_PORT, SPEECH_MAX_LENGTH } from '@unipet/core';
+import { isExternallyAllowedState, sanitizeBubbleText, DEFAULT_HTTP_PORT, SPEECH_MAX_LENGTH, type MoveTarget } from '@unipet/core';
 
 const MAX_PORT_RETRIES = 100;
 const MAX_BODY_SIZE = 4096;
+
+const VALID_MOVE_TARGETS = new Set([
+  'stay', 'center', 'edge-left', 'edge-right', 'edge-top', 'edge-bottom',
+  'corner-tl', 'corner-tr', 'corner-bl', 'corner-br',
+]);
+
+function isValidMoveTarget(value: string): value is MoveTarget {
+  return VALID_MOVE_TARGETS.has(value);
+}
 
 function generateToken(): string {
   return randomBytes(24).toString('base64url');
@@ -136,6 +145,7 @@ export class PetHttpServer {
     const route = `${req.method} ${url.pathname}`;
 
     if (route === 'POST /api/state') return this.requireAuth(req, res, () => this.handleState(req, res));
+    if (route === 'POST /api/move') return this.requireAuth(req, res, () => this.handleMove(req, res));
     if (route === 'POST /api/speech') return this.requireAuth(req, res, () => this.handleSpeech(req, res));
     if (route === 'POST /api/emotion') return this.requireAuth(req, res, () => this.handleEmotion(req, res));
     if (route === 'POST /api/permission') return this.requireAuth(req, res, () => this.handlePermission(req, res));
@@ -167,6 +177,26 @@ export class PetHttpServer {
         source: 'hook',
         state,
         sessionId: sessionId || 'default',
+        timestamp: Date.now(),
+      };
+      this.petWindow?.webContents.send('pet:event', event);
+      this.broadcast(event);
+      this.writeJson(res, 200, { success: true });
+    });
+  }
+
+  private handleMove(req: IncomingMessage, res: ServerResponse): void {
+    this.readBody(req, res, (body) => {
+      const { target } = body as { target?: string };
+      if (!target || !isValidMoveTarget(target)) {
+        this.writeJson(res, 400, { error: `Invalid or missing move target: ${target}` });
+        return;
+      }
+
+      const event = {
+        type: 'move',
+        source: 'hook',
+        move: target,
         timestamp: Date.now(),
       };
       this.petWindow?.webContents.send('pet:event', event);
@@ -404,7 +434,7 @@ export class PetHttpServer {
         httpPort: this._port,
         pid: process.pid,
         startedAt: new Date().toISOString(),
-        version: '0.1.0',
+        version: '0.1.2',
       };
       writeFileSync(join(dir, 'ipc.json'), JSON.stringify(info, null, 2));
     } catch { /* non-critical */ }

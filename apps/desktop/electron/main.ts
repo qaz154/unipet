@@ -1,8 +1,8 @@
 /**
  * UniPet Desktop Pet — Production-grade Electron Main Process
  *
- * Architecture (inspired by clawd-on-desk, NOT copied):
- * - Dual-window: render (transparent, click-through) + hit (receives input)
+ * Architecture:
+ * - Transparent render window displays pet and handles input directly
  * - Mini mode: edge snap, peek on hover, parabolic jump
  * - Always-on-top with watchdog timer
  * - Crash recovery: auto-reload on render process crash
@@ -10,7 +10,7 @@
  * - Session tracking with state priority
  */
 
-import { app, BrowserWindow, Tray, Menu, nativeImage, screen, ipcMain, shell, globalShortcut } from 'electron';
+import { app, BrowserWindow, Tray, Menu, nativeImage, screen, ipcMain, shell, globalShortcut, dialog } from 'electron';
 import { join } from 'path';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, appendFileSync } from 'fs';
 import { homedir } from 'os';
@@ -105,8 +105,7 @@ function setSetting(key: string, value: unknown): void {
 
 // ─── Window State ──────────────────────────────────────
 
-let renderWin: BrowserWindow | undefined;  // Transparent pet display
-let hitWin: BrowserWindow | undefined;     // Nearly transparent input receiver
+let renderWin: BrowserWindow | undefined;  // Transparent pet display (handles both rendering and input)
 let settingsWindow: BrowserWindow | undefined;
 let dashboardWindow: BrowserWindow | undefined;
 let tray: Tray | undefined;
@@ -168,10 +167,6 @@ function getWindowSize(): { width: number; height: number } {
   return SIZE_PRESETS[size] || SIZE_PRESETS.M;
 }
 
-// ─── Dual-Window Architecture ──────────────────────────
-// Render window: transparent, click-through, displays pet
-// Hit window: nearly transparent, receives all pointer events
-
 function createRenderWindow(): BrowserWindow {
   const pos = getSavedPosition();
   const size = getWindowSize();
@@ -187,7 +182,6 @@ function createRenderWindow(): BrowserWindow {
     skipTaskbar: true,
     alwaysOnTop: true,
     hasShadow: false,
-    focusable: false,
     webPreferences: {
       preload: join(dir, '..', 'electron', 'preload.cjs'),
       contextIsolation: true,
@@ -196,18 +190,19 @@ function createRenderWindow(): BrowserWindow {
     },
   });
 
+  renderWin.setFocusable(false);
   renderWin.setAlwaysOnTop(true, 'pop-up-menu');
   renderWin.setContentProtection(getSetting<boolean>('screenPrivacy', true));
-  renderWin.setIgnoreMouseEvents(true); // Click-through permanently
 
   if (process.env['VITE_DEV_SERVER_URL']) {
     renderWin.loadURL(process.env['VITE_DEV_SERVER_URL']);
   } else {
     renderWin.loadFile(join(dir, '../dist/index.html'));
   }
+  renderWin.showInactive();
 
   renderWin.on('move', () => {
-    syncHitWindow();
+    saveWindowPosition();
   });
 
   renderWin.webContents.on('did-finish-load', () => {
@@ -236,51 +231,6 @@ function createRenderWindow(): BrowserWindow {
   return renderWin;
 }
 
-function createHitWindow(): BrowserWindow {
-  const pos = getSavedPosition();
-  const size = getWindowSize();
-
-  hitWin = new BrowserWindow({
-    width: size.width,
-    height: size.height,
-    x: pos.x,
-    y: pos.y,
-    transparent: true,
-    frame: false,
-    resizable: false,
-    skipTaskbar: true,
-    alwaysOnTop: true,
-    hasShadow: false,
-    backgroundColor: '#00000000',
-    webPreferences: {
-      preload: join(dir, '..', 'electron', 'preload-hit.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: false,
-    },
-  });
-
-  hitWin.setAlwaysOnTop(true, 'pop-up-menu');
-
-  // Load the hit area HTML
-  hitWin.loadFile(join(dir, '..', 'electron', 'hit.html'));
-
-  hitWin.on('focus', () => {
-    // Keep render window behind hit window
-    renderWin?.setAlwaysOnTop(true, 'pop-up-menu');
-  });
-
-  return hitWin;
-}
-
-function syncHitWindow(): void {
-  if (!renderWin || !hitWin || renderWin.isDestroyed() || hitWin.isDestroyed()) return;
-  const [x, y] = renderWin.getPosition();
-  const [w, h] = renderWin.getSize();
-  hitWin.setBounds({ x, y, width: w, height: h });
-  hitWin.setAlwaysOnTop(renderWin.isAlwaysOnTop(), 'pop-up-menu');
-}
-
 // ─── Always-on-Top Watchdog ────────────────────────────
 
 const TOPMOST_WATCHDOG_MS = 5000;
@@ -296,9 +246,6 @@ function startTopmostWatchdog(): void {
 function reassertTopmost(): void {
   if (renderWin && !renderWin.isDestroyed()) {
     renderWin.setAlwaysOnTop(true, 'pop-up-menu');
-  }
-  if (hitWin && !hitWin.isDestroyed()) {
-    hitWin.setAlwaysOnTop(true, 'pop-up-menu');
   }
 }
 
@@ -338,7 +285,6 @@ function enterMiniMode(edge: 'left' | 'right'): void {
   // Animate to edge
   animateWindow(targetX, targetY, 100);
   renderWin?.webContents.send('pet:mini-mode', true);
-  hitWin?.webContents.send('pet:mini-mode', true);
 }
 
 function exitMiniMode(): void {
@@ -352,7 +298,6 @@ function exitMiniMode(): void {
   }
 
   renderWin?.webContents.send('pet:mini-mode', false);
-  hitWin?.webContents.send('pet:mini-mode', false);
 }
 
 function animateWindow(targetX: number, targetY: number, duration: number): void {
@@ -409,7 +354,6 @@ function createTray(): void {
   tray.on('double-click', () => {
     if (isMiniMode) exitMiniMode();
     renderWin?.show();
-    hitWin?.show();
   });
 }
 
@@ -512,7 +456,6 @@ function updateTrayMenu(): void {
       click: () => {
         isPaused = !isPaused;
         renderWin?.webContents.send('pet:pause-toggled', isPaused);
-        hitWin?.webContents.send('pet:pause-toggled', isPaused);
         updateTrayMenu();
       },
     },
@@ -533,11 +476,9 @@ function updateTrayMenu(): void {
       click: () => {
         isDnd = !isDnd;
         renderWin?.webContents.send('pet:dnd-changed', isDnd);
-        hitWin?.webContents.send('pet:dnd-changed', isDnd);
         if (isDnd) {
           setSetting('soundEnabled', false);
           renderWin?.webContents.send('settings:changed', 'soundEnabled', false);
-          hitWin?.webContents.send('settings:changed', 'soundEnabled', false);
         }
         updateTrayMenu();
       },
@@ -550,7 +491,6 @@ function updateTrayMenu(): void {
       click: () => {
         setSetting('hideBubbles', !bubblesHidden);
         renderWin?.webContents.send('settings:changed', 'hideBubbles', !bubblesHidden);
-        hitWin?.webContents.send('settings:changed', 'hideBubbles', !bubblesHidden);
         updateTrayMenu();
       },
     },
@@ -561,7 +501,6 @@ function updateTrayMenu(): void {
       click: () => {
         setSetting('soundEnabled', !soundOn);
         renderWin?.webContents.send('settings:changed', 'soundEnabled', !soundOn);
-        hitWin?.webContents.send('settings:changed', 'soundEnabled', !soundOn);
         updateTrayMenu();
       },
     },
@@ -585,10 +524,7 @@ function resizePet(size: string): void {
   setSetting('petSize', size);
   const s = SIZE_PRESETS[size] || SIZE_PRESETS.M;
   renderWin?.setSize(s.width, s.height);
-  hitWin?.setSize(s.width, s.height);
-  syncHitWindow();
   renderWin?.webContents.send('pet:size-changed', s);
-  hitWin?.webContents.send('pet:size-changed', s);
   updateTrayMenu();
 }
 
@@ -725,11 +661,9 @@ function openDashboard(): void {
 // Window controls
 ipcMain.handle('pet:show', () => {
   renderWin?.show();
-  hitWin?.show();
 });
 ipcMain.handle('pet:hide', () => {
   renderWin?.hide();
-  hitWin?.hide();
 });
 ipcMain.handle('pet:move', (_e, x: number, y: number) => {
   if (typeof x !== 'number' || typeof y !== 'number' ||
@@ -738,24 +672,20 @@ ipcMain.handle('pet:move', (_e, x: number, y: number) => {
   const clampedX = Math.max(wa.x, Math.min(x, wa.x + wa.width  - 1));
   const clampedY = Math.max(wa.y, Math.min(y, wa.y + wa.height - 1));
   renderWin?.setPosition(clampedX, clampedY);
-  syncHitWindow();
 });
 ipcMain.handle('pet:get-position', () => renderWin?.getPosition() ?? [0, 0]);
 ipcMain.handle('pet:set-always-on-top', (_e, enabled: boolean) => {
   renderWin?.setAlwaysOnTop(enabled, 'pop-up-menu');
-  hitWin?.setAlwaysOnTop(enabled, 'pop-up-menu');
   if (enabled) startTopmostWatchdog();
 });
-ipcMain.handle('pet:set-click-through', (_e, _enabled: boolean) => {
-  // Click-through is always on for render window; hit window handles input.
-  // Kept as a no-op handler so renderer-side preload calls succeed silently.
+ipcMain.handle('pet:set-click-through', (_e, enabled: boolean) => {
+  renderWin?.setIgnoreMouseEvents(enabled, { forward: true });
 });
 ipcMain.handle('pet:set-content-protection', (_e, enabled: boolean) => {
   renderWin?.setContentProtection(enabled);
 });
 ipcMain.handle('pet:start-drag', () => {
-  // Drag is currently driven by the hit window via drag-lock/drag-move/drag-end IPC.
-  // This handler exists so renderer-side calls don't reject; it intentionally no-ops.
+  // Drag is driven by direct pointer events on the render window.
 });
 
 // State
@@ -797,7 +727,6 @@ ipcMain.on('drag-move', (_e, mouseX: number, mouseY: number) => {
   const clampedX = Math.max(wa.x, Math.min(Math.round(x), wa.x + wa.width  - 1));
   const clampedY = Math.max(wa.y, Math.min(Math.round(y), wa.y + wa.height - 1));
   renderWin.setPosition(clampedX, clampedY);
-  syncHitWindow();
 });
 
 ipcMain.on('drag-lock', (_e, cursorX: number, cursorY: number) => {
@@ -855,7 +784,6 @@ ipcMain.handle('settings:set', (_e, key: string, value: unknown) => {
   if (typeof value === 'function' || typeof value === 'symbol') return;
   setSetting(key, value);
   renderWin?.webContents.send('settings:changed', key, value);
-  hitWin?.webContents.send('settings:changed', key, value);
   settingsWindow?.webContents.send('settings:changed', key, value);
   if (key === 'locale') {
     updateTrayTooltip();
@@ -888,7 +816,7 @@ ipcMain.handle('agent:install', async (_e, agentId: unknown) => {
   // Without this, the spawned shell would happily expand any metacharacters
   // a renderer attacker could inject ("foo; rm -rf ~" etc.).
   if (typeof agentId !== 'string' || !ALLOWED_AGENT_IDS.has(agentId)) {
-    return { success: false, error: 'invalid-agent-id' };
+    return { success: false, error: `Unknown agent "${String(agentId)}". Available: ${[...ALLOWED_AGENT_IDS].join(', ')}` };
   }
   const scriptPath = join(dir, '..', '..', 'hooks', 'install-hooks.js');
   return await new Promise<{ success: boolean; output?: string; error?: string }>((resolve) => {
@@ -975,8 +903,6 @@ process.on('unhandledRejection', (reason) => {
 
 app.whenReady().then(() => {
   createRenderWindow();
-  createHitWindow();
-  syncHitWindow();
   startTopmostWatchdog();
   createTray();
   httpServer.start(DEFAULT_HTTP_PORT, renderWin);
@@ -1009,8 +935,39 @@ app.whenReady().then(() => {
   // ── Auto Updater ───────────────────────────────────────
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
-  autoUpdater.checkForUpdatesAndNotify().catch(() => {
-    log.info('No updates available or update check failed (dev mode)');
+
+  autoUpdater.on('update-available', (info) => {
+    log.info('Update available:', info.version);
+    dialog.showMessageBox({
+      type: 'info',
+      title: 'Update Available',
+      message: `A new version (${info.version}) is available. Download now?`,
+      buttons: ['Download', 'Later'],
+      defaultId: 0,
+    }).then((result) => {
+      if (result.response === 0) autoUpdater.downloadUpdate();
+    });
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    log.info('Update downloaded:', info.version);
+    dialog.showMessageBox({
+      type: 'info',
+      title: 'Update Ready',
+      message: `Version ${info.version} downloaded. Restart to install?`,
+      buttons: ['Restart', 'Later'],
+      defaultId: 0,
+    }).then((result) => {
+      if (result.response === 0) autoUpdater.quitAndInstall();
+    });
+  });
+
+  autoUpdater.on('error', (err) => {
+    log.error('Auto-updater error:', err.message);
+  });
+
+  autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+    log.info('Update check skipped:', err?.message || 'dev mode');
   });
 });
 
@@ -1026,7 +983,6 @@ app.on('before-quit', async () => {
   adapterBus?.clear?.();
   adapterBus = null;
   renderWin?.destroy();
-  hitWin?.destroy();
   settingsWindow?.destroy();
   dashboardWindow?.destroy();
   tray?.destroy();

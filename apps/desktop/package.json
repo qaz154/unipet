@@ -1,6 +1,6 @@
 {
   "name": "@unipet/desktop",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "main": "dist-electron/main.js",
@@ -51,9 +51,6 @@
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
-      "electron/hit.html",
-      "electron/hit-renderer.js",
-      "electron/preload-hit.js",
       "electron/preload.cjs",
       "public/**/*"
     ],

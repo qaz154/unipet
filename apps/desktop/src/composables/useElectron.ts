@@ -8,9 +8,10 @@
 
 import type { UniPetBridge, UniPetEventChannel } from '../types/unipet';
 
-const electron: UniPetBridge | undefined = window.unipet;
+const getEp = (): UniPetBridge | undefined => window.unipet;
 
 export function useElectron() {
+  const electron = getEp();
   const isElectron = !!electron;
 
   return {
