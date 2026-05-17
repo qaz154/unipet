@@ -18,6 +18,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.js"
+    },
+    "./file-utils": {
+      "types": "./dist/file-utils.d.ts",
+      "import": "./dist/file-utils.js",
+      "require": "./dist/file-utils.js"
     }
   },
   "scripts": {
