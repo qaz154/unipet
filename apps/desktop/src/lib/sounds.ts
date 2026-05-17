@@ -40,11 +40,13 @@ export const DEFAULT_SOUNDS: SoundSet = {
   ],
 };
 
-const SOUND_COOLDOWN_MS = 5000;
-let lastSoundTime = 0;
+/** Per-source cooldown: prevents same-sound spam but allows multi-note sequences */
+const SOUND_COOLDOWN_MS = 800;
 
-export function createSoundPlayer() {
+export function createSoundPlayer(customSounds?: Partial<SoundSet>) {
+  const sounds: SoundSet = { ...DEFAULT_SOUNDS, ...customSounds };
   let audioCtx: AudioContext | null = null;
+  const lastPlayed = new Map<string, number>();
 
   const getCtx = (): AudioContext => {
     if (!audioCtx) audioCtx = new AudioContext();
@@ -66,10 +68,11 @@ export function createSoundPlayer() {
   };
 
   return {
-    play(recipes: SoundRecipe[]): void {
+    play(key: string, recipes: SoundRecipe[]): void {
       const now = Date.now();
-      if (now - lastSoundTime < SOUND_COOLDOWN_MS) return;
-      lastSoundTime = now;
+      const last = lastPlayed.get(key) || 0;
+      if (now - last < SOUND_COOLDOWN_MS) return;
+      lastPlayed.set(key, now);
       try {
         const ctx = getCtx();
         let delay = 0;
@@ -80,15 +83,15 @@ export function createSoundPlayer() {
       } catch { /* audio unavailable */ }
     },
 
-    playState(state: string, sounds: SoundSet = DEFAULT_SOUNDS): void {
+    playState(state: string): void {
       const key = state as keyof SoundSet;
       if (sounds[key]) {
-        this.play(sounds[key]);
+        this.play(state, sounds[key]);
       }
     },
 
     playClick(): void {
-      this.play(DEFAULT_SOUNDS.click);
+      this.play('click', sounds.click);
     },
   };
 }

@@ -230,3 +230,25 @@ export function handleHook(source, eventName, payload) {
     toolName: payload.tool_name || payload.name,
   });
 }
+
+/**
+ * Derive agent source from the calling hook script filename.
+ * E.g. claude-hook.js → 'claude-code', cursor-hook.js → 'cursor'
+ */
+const SCRIPT_TO_SOURCE = {
+  'claude-hook.js': 'claude-code',
+  'codex-hook.js': 'codex',
+  'cursor-hook.js': 'cursor',
+  'gemini-hook.js': 'gemini',
+  'copilot-hook.js': 'copilot',
+  'codebuddy-hook.js': 'codebuddy',
+  'kiro-hook.js': 'kiro',
+  'kimi-hook.js': 'kimi',
+};
+
+/** Auto-detected entry point. Reads stdin, maps event, posts to UniPet. */
+export function main() {
+  const source = SCRIPT_TO_SOURCE[process.argv[1].split(/[\\/]/).pop()] || 'unknown';
+  const payload = readStdinPayload();
+  handleHook(source, process.argv[2], payload);
+}

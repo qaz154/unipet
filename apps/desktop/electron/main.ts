@@ -16,7 +16,8 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, appendFileSync } fr
 import { homedir } from 'os';
 import { execFile } from 'child_process';
 import { fileURLToPath } from 'url';
-import { listAgentIds, AdapterRegistry, createBuiltinAdapters, MCPAdapter, HTTPAdapter, GitAdapter } from '@unipet/adapters';
+import { listAgentIds, AdapterRegistry, createBuiltinAdapters, MCPAdapter, HTTPAdapter, GitAdapter, HookBasedAdapter, BUILTIN_AGENTS } from '@unipet/adapters';
+import { ClaudeCodeAdapter } from '@unipet/adapters';
 import { EventBus, DEFAULT_HTTP_PORT, createLogger } from '@unipet/core';
 import type { PetEvent, Logger } from '@unipet/core';
 import { PetHttpServer } from './http-server.js';
@@ -851,17 +852,22 @@ ipcMain.handle('adapter:start-all', async (_e, enabledIds: string[]) => {
     adapterBus = new EventBus();
     adapterRegistry = new AdapterRegistry();
 
-    // Register all built-in hook-based agents
-    for (const adapter of createBuiltinAdapters()) {
-      adapterRegistry.register(adapter);
+    // Register all built-in hook-based agents (Claude Code uses its specialized adapter)
+    for (const def of BUILTIN_AGENTS) {
+      if (def.id === 'claude-code') {
+        adapterRegistry.register(new ClaudeCodeAdapter());
+      } else {
+        adapterRegistry.register(new HookBasedAdapter(def));
+      }
     }
     // Register protocol-based adapters
     adapterRegistry.register(new MCPAdapter());
     adapterRegistry.register(new HTTPAdapter());
     adapterRegistry.register(new GitAdapter());
 
-    // Subscribe to adapter events and forward to renderer
+    // Subscribe to adapter events and forward to renderer (DND blocks forwarding)
     adapterBus.on((event: PetEvent) => {
+      if (isDnd && event.type !== 'permission') return;
       renderWin?.webContents.send('pet:event', event);
     });
 

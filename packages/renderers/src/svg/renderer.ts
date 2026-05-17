@@ -65,9 +65,20 @@ export class SVGRenderer implements RendererPlugin {
 
     // Create wrapper for eye tracking transforms
     this.wrapper = document.createElement('div');
+    this.wrapper.className = 'unipet-svg-wrapper';
     this.wrapper.style.position = 'relative';
     this.wrapper.style.width = '100%';
     this.wrapper.style.height = '100%';
+
+    // Inject emotion-driven animation keyframes (guarded for test/SSR envs)
+    if (typeof document !== 'undefined' && typeof document.getElementById === 'function' && document.head) {
+      if (!document.getElementById('unipet-svg-styles')) {
+        const style = document.createElement('style');
+        style.id = 'unipet-svg-styles';
+        style.textContent = '@keyframes unipet-pulse{from{scale:1}to{scale:1.04}}';
+        document.head.appendChild(style);
+      }
+    }
     container.appendChild(this.wrapper);
 
     // Apply initial config — previously these were silently dropped, leaving
@@ -94,8 +105,23 @@ export class SVGRenderer implements RendererPlugin {
     this.updateEyeTracking();
   }
 
-  setEmotion(_emotion: EmotionVector): void {
-    // SVG renderer uses state mapping, not direct emotion
+  setEmotion(emotion: EmotionVector): void {
+    const { valence, arousal, dominance } = emotion;
+    const filters: string[] = [];
+    // Red tint for negative valence, green for positive
+    if (valence < -0.3) filters.push('hue-rotate(-20deg)');
+    else if (valence > 0.3) filters.push('hue-rotate(20deg)');
+    // Excited → slight scale pulse via CSS animation
+    if (arousal > 0.7) {
+      this.wrapper.style.animation = 'unipet-pulse 0.6s ease-in-out infinite alternate';
+    } else {
+      this.wrapper.style.animation = '';
+    }
+    // Submissive → slight transparency
+    if (dominance < 0.3) this.wrapper.style.opacity = '0.85';
+    else this.wrapper.style.opacity = '';
+    // Apply combined filters
+    this.wrapper.style.filter = filters.join(' ') || '';
   }
 
   setVisible(vis: boolean): void {

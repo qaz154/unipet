@@ -21,13 +21,10 @@ function isValidPetEvent(raw: unknown): raw is {
 } {
   if (typeof raw !== 'object' || raw === null) return false;
   const e = raw as Record<string, unknown>;
-  return (
-    typeof e.type === 'string' &&
-    VALID_PET_EVENT_TYPES.has(e.type) &&
-    typeof e.source === 'string' &&
-    typeof e.timestamp === 'number' &&
-    Number.isFinite(e.timestamp)
-  );
+  if (typeof e.type !== 'string' || !VALID_PET_EVENT_TYPES.has(e.type)) return false;
+  if (typeof e.source !== 'string') (e as Record<string, unknown>).source = 'unknown';
+  if (typeof e.timestamp !== 'number' || !Number.isFinite(e.timestamp)) (e as Record<string, unknown>).timestamp = Date.now();
+  return true;
 }
 
 contextBridge.exposeInMainWorld('unipet', {
@@ -37,11 +34,17 @@ contextBridge.exposeInMainWorld('unipet', {
   move: (x: number, y: number) => ipcRenderer.invoke('pet:move', x, y),
   startDrag: () => ipcRenderer.invoke('pet:start-drag'),
   getPosition: () => ipcRenderer.invoke('pet:get-position'),
+
+  // Fire-and-forget drag IPC (no round-trip, smooth)
+  dragLock: (cursorX: number, cursorY: number) => ipcRenderer.send('drag-lock', cursorX, cursorY),
+  dragMove: (cursorX: number, cursorY: number) => ipcRenderer.send('drag-move', cursorX, cursorY),
+  dragEnd: () => ipcRenderer.send('drag-end'),
   setAlwaysOnTop: (enabled: boolean) => ipcRenderer.invoke('pet:set-always-on-top', enabled),
   setClickThrough: (enabled: boolean) => ipcRenderer.invoke('pet:set-click-through', enabled),
   setContentProtection: (enabled: boolean) => ipcRenderer.invoke('pet:set-content-protection', enabled),
   openSettings: () => ipcRenderer.invoke('app:open-settings'),
   isPaused: () => ipcRenderer.invoke('app:is-paused'),
+  isDnd: () => ipcRenderer.invoke('pet:is-dnd'),
   setState: (state: string) => ipcRenderer.invoke('pet:set-state', state),
   installAgent: (agentId: string) => ipcRenderer.invoke('agent:install', agentId),
 
@@ -66,8 +69,9 @@ contextBridge.exposeInMainWorld('unipet', {
   on: (channel: string, callback: (...args: unknown[]) => void) => {
     const allowed = [
       'pet:pause-toggled', 'pet:event', 'pet:mini-mode', 'pet:size-changed',
-      'pet:clicked', 'settings:loaded', 'settings:changed', 'mouse-move',
-      'drag:started', 'drag:ended', 'throw-pet', 'shortcut', 'permission:resolved',
+      'pet:clicked', 'pet:dnd-changed', 'settings:loaded', 'settings:changed',
+      'mouse-move', 'drag:started', 'drag:ended', 'throw-pet', 'shortcut',
+      'permission:resolved',
     ];
     if (!allowed.includes(channel)) return;
 
@@ -77,6 +81,8 @@ contextBridge.exposeInMainWorld('unipet', {
       ipcRenderer.on(channel, (_event, ...args) => {
         if (args.length > 0 && isValidPetEvent(args[0])) {
           callback(...args);
+        } else if (args.length > 0) {
+          console.warn('[preload] Dropped invalid pet:event:', JSON.stringify(args[0]).slice(0, 200));
         }
       });
     } else {

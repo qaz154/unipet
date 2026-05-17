@@ -125,9 +125,18 @@ function isAgentEnabled(id: string) { return settingsStore.enabledAdapters.inclu
 async function toggleAgent(id: string) {
   const idx = settingsStore.enabledAdapters.indexOf(id);
   const enabling = idx === -1;
+  const agent = agents.find((a) => a.id === id);
+  const needsInstall = agent?.badge !== 'protocol';
 
   if (enabling) {
     settingsStore.enabledAdapters.push(id);
+
+    if (!needsInstall) {
+      agentStatus.value[id] = t('status.installed');
+      setTimeout(() => { delete agentStatus.value[id]; }, 3000);
+      return;
+    }
+
     agentInstalling.value = id;
     agentStatus.value[id] = t('status.installing');
 
@@ -149,7 +158,7 @@ async function toggleAgent(id: string) {
       settingsStore.enabledAdapters.splice(settingsStore.enabledAdapters.indexOf(id), 1);
     } finally {
       agentInstalling.value = null;
-      setTimeout(() => { delete agentStatus.value[id]; }, 3000);
+      setTimeout(() => { delete agentStatus.value[id]; }, 8000);
     }
   } else {
     settingsStore.enabledAdapters.splice(idx, 1);

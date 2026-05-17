@@ -12,6 +12,7 @@ export type UniPetEventChannel =
   | 'pet:mini-mode'
   | 'pet:size-changed'
   | 'pet:clicked'
+  | 'pet:dnd-changed'
   | 'permission:resolved'
   | 'settings:loaded'
   | 'settings:changed'
@@ -20,6 +21,18 @@ export type UniPetEventChannel =
   | 'drag:ended'
   | 'throw-pet'
   | 'shortcut';
+
+/** Shape of pet:event payload received by the renderer */
+export interface PetEventPayload {
+  type: string;
+  source: string;
+  state?: string;
+  message?: string;
+  permissionId?: string;
+  permissionTool?: string;
+  timestamp: number;
+  meta?: Record<string, unknown>;
+}
 
 export interface UniPetBridge {
   // ─── Window control ─────────────────────────────────
@@ -38,6 +51,7 @@ export interface UniPetBridge {
   setContentProtection: (enabled: boolean) => Promise<void>;
   openSettings: () => Promise<void>;
   isPaused: () => Promise<boolean>;
+  isDnd: () => Promise<boolean>;
   setState: (state: string) => Promise<void>;
 
   // ─── Frameless window controls ─────────────────────
@@ -56,13 +70,16 @@ export interface UniPetBridge {
   /** Low-level IPC invoke for channels not yet typed. Prefer typed methods. */
   invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
 
+  // ─── Permission ────────────────────────────────────
+  respondToPermission: (permissionId: string, action: string) => Promise<unknown>;
+
   // ─── Settings persistence ──────────────────────────
   getSetting: <T = unknown>(key: string) => Promise<T | undefined>;
   setSetting: (key: string, value: unknown) => Promise<void>;
   getAllSettings: () => Promise<Record<string, unknown>>;
 
   // ─── Events ────────────────────────────────────────
-  /** Subscribe to a renderer-visible IPC channel. Untyped args; cast at call site. */
+  /** Subscribe to a renderer-visible IPC channel. */
   on: (channel: UniPetEventChannel, callback: (...args: unknown[]) => void) => void;
 }
 

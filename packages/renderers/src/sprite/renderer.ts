@@ -63,6 +63,7 @@ export class SpriteRenderer implements RendererPlugin {
     container: HTMLElement,
     config: RendererConfig,
     spriteConfig?: SpriteConfig,
+    canvas?: HTMLCanvasElement,
   ): Promise<void> {
     this.rendererConfig = config;
     this.spriteConfig = spriteConfig ?? {
@@ -74,7 +75,12 @@ export class SpriteRenderer implements RendererPlugin {
       stateRows: DEFAULT_SPRITE_STATE_ROWS,
     };
 
-    this.canvas = document.createElement('canvas');
+    if (canvas) {
+      this.canvas = canvas;
+    } else {
+      this.canvas = document.createElement('canvas');
+      container.appendChild(this.canvas);
+    }
     const scaledWidth = this.spriteConfig.frameWidth * config.scale;
     const scaledHeight = this.spriteConfig.frameHeight * config.scale;
     this.canvas.width = scaledWidth;
@@ -86,8 +92,6 @@ export class SpriteRenderer implements RendererPlugin {
     if (!ctx) throw new Error('Failed to get 2D context');
     this.ctx = ctx;
     this.ctx.imageSmoothingEnabled = false;
-
-    container.appendChild(this.canvas);
 
     // Load spritesheet — be loud if it's missing so callers don't end up with
     // a silently-inert canvas where update() returns early forever.

@@ -434,7 +434,7 @@ export class PetHttpServer {
         httpPort: this._port,
         pid: process.pid,
         startedAt: new Date().toISOString(),
-        version: '0.1.2',
+        version: '0.1.3',
       };
       writeFileSync(join(dir, 'ipc.json'), JSON.stringify(info, null, 2));
     } catch { /* non-critical */ }

@@ -2,21 +2,20 @@
 /**
  * UniPet — Professional Desktop Pet
  *
- * Architecture (production-grade):
- * - Dual-window: render (transparent) + hit (input) — IPC from hit window
+ * Architecture:
+ * - Single window (render handles both display and input)
+ * - Pluggable renderers: CSS pixel, SVG, sprite, Live2D (future)
  * - Adaptive tick rate: 50ms~5s based on activity level
  * - Session tracking with state priority resolution
  * - Eye tracking with lerp easing
- * - Sound effects with 10s cooldown
- * - S/M/L size presets
- * - Custom pet import
- * - Mini mode support
+ * - Sound effects with per-source cooldown
  */
 
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
 import { EventBus, StateManager, EmotionEngine, BubbleManager, STATE_PRIORITY } from '@unipet/core';
 import type { PetState } from '@unipet/core';
-import { SVGRenderer } from '@unipet/renderers';
+import { SVGRenderer, CSSPixelRenderer, SpriteRenderer } from '@unipet/renderers';
+import type { CSSPixelConfig, SpriteConfig } from '@unipet/renderers';
 import { usePetStore } from '../../stores/pet';
 import { useSettingsStore } from '../../stores/settings';
 import { useI18n } from '../../composables/useI18n';
@@ -33,10 +32,12 @@ const canvasWrapRef = ref<HTMLDivElement | null>(null);
 const svgContainerRef = ref<HTMLDivElement | null>(null);
 let ctx: CanvasRenderingContext2D;
 let svgRenderer: SVGRenderer | null = null;
+let cssPixelRenderer: CSSPixelRenderer | null = null;
+let spriteRenderer: SpriteRenderer | null = null;
 
 // ── Render Mode ──────────────────────────────────────
 const themeLoader = useTheme();
-const renderMode = ref<'css-pixel' | 'svg'>('css-pixel');
+const renderMode = ref<'css-pixel' | 'svg' | 'css-theme' | 'sprite'>('css-pixel');
 
 // Resolve SVG asset paths from theme glob
 const svgAssets = import.meta.glob('../../../themes/svg-cat/*.svg', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
@@ -156,13 +157,13 @@ function lerpEyes() {
 
 // ─── Sound Effects (10s cooldown) ──────────────────────
 
-import { createSoundPlayer, DEFAULT_SOUNDS } from '../../lib/sounds.js';
+import { createSoundPlayer } from '../../lib/sounds.js';
 
 const soundPlayer = createSoundPlayer();
 
 function playStateSound(state: string) {
   if (!settingsStore.soundEnabled) return;
-  soundPlayer.playState(state, DEFAULT_SOUNDS);
+  soundPlayer.playState(state);
 }
 
 // ─── Adaptive Tick Rate ────────────────────────────────
@@ -688,8 +689,12 @@ const demoTimers: ReturnType<typeof setTimeout>[] = [];
 onMounted(async () => {
   // Determine render mode from active theme
   const activeTheme = themeLoader.getActive() || themeLoader.get('svg-cat');
-  if (activeTheme && activeTheme.renderer === 'svg') {
+  if (activeTheme?.renderer === 'svg') {
     renderMode.value = 'svg';
+  } else if (activeTheme?.renderer === 'css-pixel') {
+    renderMode.value = 'css-theme';
+  } else if (activeTheme?.renderer === 'spritesheet') {
+    renderMode.value = 'sprite';
   }
 
   await nextTick();
@@ -704,6 +709,26 @@ onMounted(async () => {
     };
     await svgRenderer.init(svgContainerRef.value, { scale: displayScale.value, opacity: petStore.opacity }, svgConfig);
     svgRenderer.setState('idle', { duration: 0 });
+  } else if (renderMode.value === 'css-theme' && canvasRef.value && activeTheme) {
+    // CSS pixel theme render path
+    cssPixelRenderer = new CSSPixelRenderer();
+    await cssPixelRenderer.init(
+      canvasWrapRef.value!,
+      { scale: displayScale.value, opacity: petStore.opacity },
+      activeTheme.rendererConfig as CSSPixelConfig,
+      canvasRef.value,
+    );
+    cssPixelRenderer.setState('idle', { duration: 0 });
+  } else if (renderMode.value === 'sprite' && canvasRef.value && activeTheme) {
+    // Sprite theme render path
+    spriteRenderer = new SpriteRenderer();
+    await spriteRenderer.init(
+      canvasWrapRef.value!,
+      { scale: displayScale.value, opacity: petStore.opacity },
+      activeTheme.rendererConfig as SpriteConfig,
+      canvasRef.value,
+    );
+    spriteRenderer.setState('idle', { duration: 0 });
   } else if (canvasRef.value) {
     // Canvas render path (existing)
     ctx = canvasRef.value.getContext('2d')!;
@@ -793,9 +818,9 @@ onMounted(async () => {
     updateSession('state-manager', s);
     stateFlash = 1;
     playStateSound(s);
-    if (svgRenderer) {
-      svgRenderer.setState(s, { duration: 300 });
-    }
+    if (svgRenderer) svgRenderer.setState(s, { duration: 300 });
+    if (cssPixelRenderer) cssPixelRenderer.setState(s, { duration: 300 });
+    if (spriteRenderer) spriteRenderer.setState(s, { duration: 300 });
   });
 
   bubbleManager.onBubble((b) => showBubble(b.text));
@@ -827,6 +852,14 @@ onUnmounted(() => {
   if (svgRenderer) {
     svgRenderer.destroy();
     svgRenderer = null;
+  }
+  if (cssPixelRenderer) {
+    cssPixelRenderer.destroy();
+    cssPixelRenderer = null;
+  }
+  if (spriteRenderer) {
+    spriteRenderer.destroy();
+    spriteRenderer = null;
   }
   if (typewriterTimer) clearTimeout(typewriterTimer);
   if (bubbleDismissTimer) clearTimeout(bubbleDismissTimer);

@@ -135,27 +135,36 @@ export class CSSPixelRenderer implements RendererPlugin {
     container: HTMLElement,
     config: RendererConfig,
     pixelConfig?: CSSPixelConfig,
+    canvas?: HTMLCanvasElement,
   ): Promise<void> {
     this.rendererConfig = config;
     this.config = pixelConfig ?? DEFAULT_SLIME_CONFIG;
 
     const size = this.config.gridSize * this.config.upscale * config.scale;
 
-    this.canvas = document.createElement('canvas');
-    this.canvas.width = this.config.gridSize;
-    this.canvas.height = this.config.gridSize;
-    this.canvas.style.width = `${size}px`;
-    this.canvas.style.height = `${size}px`;
-    this.canvas.style.imageRendering = 'pixelated';
+    if (canvas) {
+      this.canvas = canvas;
+      this.canvas.width = this.config.gridSize;
+      this.canvas.height = this.config.gridSize;
+      this.canvas.style.width = `${size}px`;
+      this.canvas.style.height = `${size}px`;
+      this.canvas.style.imageRendering = 'pixelated';
+    } else {
+      this.canvas = document.createElement('canvas');
+      this.canvas.width = this.config.gridSize;
+      this.canvas.height = this.config.gridSize;
+      this.canvas.style.width = `${size}px`;
+      this.canvas.style.height = `${size}px`;
+      this.canvas.style.imageRendering = 'pixelated';
+      container.appendChild(this.canvas);
+    }
 
     const ctx = this.canvas.getContext('2d');
     if (!ctx) throw new Error('Failed to get 2D context');
     this.ctx = ctx;
 
-    container.appendChild(this.canvas);
-
     this.startTime = performance.now() / 1000;
-    this.startAnimation();
+    if (!canvas) this.startAnimation();
   }
 
   async setState(state: PetState, _options?: TransitionOptions): Promise<void> {
@@ -203,21 +212,13 @@ export class CSSPixelRenderer implements RendererPlugin {
     this.canvas.remove();
   }
 
-  // ─── Private ──────────────────────────────────────────────
+  // ─── Public rendering (for external animation loops) ─────────
 
-  private startAnimation(): void {
-    const render = () => {
-      if (!this.isPaused) {
-        this.renderFrame();
-      }
-      this.animationId = requestAnimationFrame(render);
-    };
-    this.animationId = requestAnimationFrame(render);
-  }
+  getGridSize(): number { return this.config.gridSize; }
 
-  private renderFrame(): void {
+  renderFrame(time?: number): void {
     const { gridSize, palette, body, faces } = this.config;
-    const t = performance.now() / 1000 - this.startTime;
+    const t = (time ?? (performance.now() / 1000)) - this.startTime;
 
     // Get wiggle profile for current state
     const profile = WIGGLE_PROFILES[this.currentState] ?? DEFAULT_WIGGLE;
@@ -330,6 +331,14 @@ export class CSSPixelRenderer implements RendererPlugin {
     if (arousal > 0.8) return allFaces['shocked'];
 
     return allFaces['idle'];
+  }
+
+  private startAnimation(): void {
+    const render = () => {
+      if (!this.isPaused) this.renderFrame();
+      this.animationId = requestAnimationFrame(render);
+    };
+    this.animationId = requestAnimationFrame(render);
   }
 
   private resumeFromPause(): void {

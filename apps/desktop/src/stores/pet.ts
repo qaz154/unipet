@@ -13,7 +13,13 @@ export const usePetStore = defineStore('pet', () => {
   const opacity = ref(1.0);
   const themeId = ref('cat');
 
-  // Load persisted settings on init
+  // Persist on change
+  watch(scale, (v) => getEp()?.setSetting('petScale', v));
+  watch(opacity, (v) => getEp()?.setSetting('petOpacity', v));
+  watch(themeId, (v) => getEp()?.setSetting('themeId', v));
+
+  let settingsListenerRegistered = false;
+
   async function loadPersisted() {
     const ep = getEp();
     if (!ep) return;
@@ -23,21 +29,18 @@ export const usePetStore = defineStore('pet', () => {
       if (s.petOpacity != null) opacity.value = s.petOpacity as number;
       if (s.themeId) themeId.value = s.themeId as string;
     } catch { /* ignore */ }
+
+    if (!settingsListenerRegistered) {
+      settingsListenerRegistered = true;
+      ep.on?.('settings:changed', (...args: unknown[]) => {
+        const key = args[0] as string;
+        const value = args[1];
+        if (key === 'themeId' && typeof value === 'string') themeId.value = value;
+        if (key === 'petScale' && typeof value === 'number') scale.value = value;
+        if (key === 'petOpacity' && typeof value === 'number') opacity.value = value;
+      });
+    }
   }
-
-  // Persist on change
-  watch(scale, (v) => getEp()?.setSetting('petScale', v));
-  watch(opacity, (v) => getEp()?.setSetting('petOpacity', v));
-  watch(themeId, (v) => getEp()?.setSetting('themeId', v));
-
-  // Listen for settings changes from other windows (settings UI, tray)
-  getEp()?.on?.('settings:changed', (...args: unknown[]) => {
-    const key = args[0] as string;
-    const value = args[1];
-    if (key === 'themeId' && typeof value === 'string') themeId.value = value;
-    if (key === 'petScale' && typeof value === 'number') scale.value = value;
-    if (key === 'petOpacity' && typeof value === 'number') opacity.value = value;
-  });
 
   function setState(state: PetState) {
     if (!isPaused.value) {

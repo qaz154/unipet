@@ -29,3 +29,8 @@ export {
   SVGRenderer,
   type SVGConfig,
 } from './svg/renderer.js';
+
+export {
+  Live2DRenderer,
+  type Live2DConfig,
+} from './live2d/renderer.js';

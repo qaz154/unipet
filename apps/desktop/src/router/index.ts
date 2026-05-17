@@ -12,6 +12,10 @@ const router = createRouter({
       path: '/settings',
       component: () => import('../pages/settings/index.vue'),
     },
+    {
+      path: '/dashboard',
+      component: () => import('../pages/dashboard/index.vue'),
+    },
   ],
 });
 
