@@ -1,8 +1,13 @@
 import { defineStore } from 'pinia';
-import { ref, watch } from 'vue';
+import { ref, watch, type Ref } from 'vue';
 
-/** Always read window.unipet dynamically so it's never stale after HMR or timing issues */
 const getEp = () => window.unipet;
+
+type SettingDef = {
+  ref: Ref;
+  key: string;
+  sideEffect?: (v: unknown) => void;
+};
 
 export const useSettingsStore = defineStore('settings', () => {
   const alwaysOnTop = ref(true);
@@ -19,62 +24,59 @@ export const useSettingsStore = defineStore('settings', () => {
   const sidebarCollapsed = ref(false);
   const enabledAdapters = ref<string[]>([]);
 
+  const settingDefs: SettingDef[] = [
+    { ref: alwaysOnTop, key: 'alwaysOnTop', sideEffect: (v) => getEp()?.setAlwaysOnTop(v as boolean) },
+    { ref: clickThrough, key: 'clickThrough', sideEffect: (v) => getEp()?.setClickThrough(v as boolean) },
+    { ref: edgeSnapping, key: 'edgeSnapping' },
+    { ref: sleepSequence, key: 'sleepSequence' },
+    { ref: idleTimeoutMs, key: 'idleTimeoutMs' },
+    { ref: clickReactions, key: 'clickReactions' },
+    { ref: dragEnabled, key: 'dragEnabled' },
+    { ref: soundEnabled, key: 'soundEnabled' },
+    { ref: hideBubbles, key: 'hideBubbles' },
+    { ref: screenPrivacy, key: 'screenPrivacy', sideEffect: (v) => getEp()?.setContentProtection?.(v as boolean) },
+    { ref: colorMode, key: 'colorMode' },
+    { ref: sidebarCollapsed, key: 'sidebarCollapsed' },
+  ];
+
+  const settingsByKey = new Map(settingDefs.map(d => [d.key, d]));
+
+  for (const def of settingDefs) {
+    watch(def.ref, (v) => {
+      getEp()?.setSetting(def.key, v);
+      def.sideEffect?.(v);
+    });
+  }
+  watch(enabledAdapters, (v) => getEp()?.setSetting('enabledAdapters', v), { deep: true });
+
   async function loadPersisted() {
     const ep = getEp();
     if (!ep) return;
     try {
       const s = await ep.getAllSettings();
-      if (s.alwaysOnTop != null) alwaysOnTop.value = s.alwaysOnTop as boolean;
-      if (s.clickThrough != null) clickThrough.value = s.clickThrough as boolean;
-      if (s.edgeSnapping != null) edgeSnapping.value = s.edgeSnapping as boolean;
-      if (s.sleepSequence) sleepSequence.value = s.sleepSequence as typeof sleepSequence.value;
-      if (s.idleTimeoutMs != null) idleTimeoutMs.value = s.idleTimeoutMs as number;
-      if (s.clickReactions != null) clickReactions.value = s.clickReactions as boolean;
-      if (s.dragEnabled != null) dragEnabled.value = s.dragEnabled as boolean;
-      if (s.soundEnabled != null) soundEnabled.value = s.soundEnabled as boolean;
-      if (s.hideBubbles != null) hideBubbles.value = s.hideBubbles as boolean;
-      if (s.screenPrivacy != null) screenPrivacy.value = s.screenPrivacy as boolean;
-      if (s.colorMode != null) colorMode.value = s.colorMode as typeof colorMode.value;
-      if (s.sidebarCollapsed != null) sidebarCollapsed.value = s.sidebarCollapsed as boolean;
+      for (const def of settingDefs) {
+        if (s[def.key] != null) def.ref.value = s[def.key];
+      }
       if (s.enabledAdapters) enabledAdapters.value = s.enabledAdapters as string[];
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.error('[settings] Failed to load:', err instanceof Error ? err.message : err);
+    }
   }
 
-  // Persist on change
-  watch(alwaysOnTop, (v) => { getEp()?.setSetting('alwaysOnTop', v); getEp()?.setAlwaysOnTop(v); });
-  watch(clickThrough, (v) => { getEp()?.setSetting('clickThrough', v); getEp()?.setClickThrough(v); });
-  watch(edgeSnapping, (v) => getEp()?.setSetting('edgeSnapping', v));
-  watch(sleepSequence, (v) => getEp()?.setSetting('sleepSequence', v));
-  watch(idleTimeoutMs, (v) => getEp()?.setSetting('idleTimeoutMs', v));
-  watch(clickReactions, (v) => getEp()?.setSetting('clickReactions', v));
-  watch(dragEnabled, (v) => getEp()?.setSetting('dragEnabled', v));
-  watch(soundEnabled, (v) => getEp()?.setSetting('soundEnabled', v));
-  watch(hideBubbles, (v) => getEp()?.setSetting('hideBubbles', v));
-  watch(screenPrivacy, (v) => { getEp()?.setSetting('screenPrivacy', v); getEp()?.setContentProtection?.(v); });
-  watch(colorMode, (v) => getEp()?.setSetting('colorMode', v));
-  watch(sidebarCollapsed, (v) => getEp()?.setSetting('sidebarCollapsed', v));
-  watch(enabledAdapters, (v) => getEp()?.setSetting('enabledAdapters', v), { deep: true });
-
-  // Listen for tray-initiated setting changes (HMR-safe: guard prevents duplicates)
-  let settingsListenerRegistered = false;
-  if (!settingsListenerRegistered) {
-    settingsListenerRegistered = true;
+  let listenerRegistered = false;
+  if (!listenerRegistered) {
+    listenerRegistered = true;
     getEp()?.on?.('settings:changed', (...args: unknown[]) => {
-    const key = args[0] as string;
-    const value = args[1];
-    if (key === 'hideBubbles' && typeof value === 'boolean') hideBubbles.value = value;
-    if (key === 'soundEnabled' && typeof value === 'boolean') soundEnabled.value = value;
-    if (key === 'screenPrivacy' && typeof value === 'boolean') screenPrivacy.value = value;
-    if (key === 'alwaysOnTop' && typeof value === 'boolean') alwaysOnTop.value = value;
-    if (key === 'clickThrough' && typeof value === 'boolean') clickThrough.value = value;
-    if (key === 'edgeSnapping' && typeof value === 'boolean') edgeSnapping.value = value;
-    if (key === 'clickReactions' && typeof value === 'boolean') clickReactions.value = value;
-    if (key === 'dragEnabled' && typeof value === 'boolean') dragEnabled.value = value;
-    if (key === 'colorMode' && typeof value === 'string') colorMode.value = value as typeof colorMode.value;
-    if (key === 'sidebarCollapsed' && typeof value === 'boolean') sidebarCollapsed.value = value;
-    if (key === 'sleepSequence' && typeof value === 'string') sleepSequence.value = value as typeof sleepSequence.value;
-    if (key === 'idleTimeoutMs' && typeof value === 'number') idleTimeoutMs.value = value;
-    if (key === 'enabledAdapters' && Array.isArray(value)) enabledAdapters.value = value as string[];
+      const key = args[0] as string;
+      const value = args[1];
+      const def = settingsByKey.get(key);
+      if (def && value != null) {
+        def.ref.value = value;
+        return;
+      }
+      if (key === 'enabledAdapters' && Array.isArray(value)) {
+        enabledAdapters.value = value as string[];
+      }
     });
   }
 

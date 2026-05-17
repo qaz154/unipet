@@ -242,7 +242,7 @@ function onClick() {
 
   const annoyState = getAnnoyanceState();
   if (annoyState === 'hiding') {
-    showBubble(t('pet.annoyed') || 'Leave me alone!');
+    showBubble(t('pet.annoyed'));
     petStore.setState('angry' as PetState);
   } else {
     showBubble(t('pet.click'));
@@ -906,9 +906,9 @@ onUnmounted(() => {
       <div v-if="bubbleVisible" class="speech-bubble" :class="{ permission: bubbleKind === 'permission' }">
         <span>{{ bubbleChars }}</span><span v-if="bubbleKind === 'speech'" class="cursor">|</span>
         <div v-if="bubbleKind === 'permission'" class="permission-btns">
-          <button class="perm-btn allow" @click="dismissPermission('allow')">Allow</button>
-          <button class="perm-btn deny" @click="dismissPermission('deny')">Deny</button>
-          <button class="perm-btn rule" @click="dismissPermission('allow-once')">Once</button>
+          <button class="perm-btn allow" @click="dismissPermission('allow')">{{ t('perm.allow') }}</button>
+          <button class="perm-btn deny" @click="dismissPermission('deny')">{{ t('perm.deny') }}</button>
+          <button class="perm-btn rule" @click="dismissPermission('allow-once')">{{ t('perm.once') }}</button>
         </div>
       </div>
     </Transition>
