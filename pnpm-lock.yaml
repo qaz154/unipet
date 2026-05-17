@@ -88,9 +88,6 @@ importers:
 
   packages/cli:
     dependencies:
-      '@unipet/adapters':
-        specifier: workspace:*
-        version: link:../adapters
       '@unipet/core':
         specifier: workspace:*
         version: link:../core
@@ -154,9 +151,6 @@ importers:
       '@unipet/core':
         specifier: workspace:*
         version: link:../core
-      '@unipet/renderers':
-        specifier: workspace:*
-        version: link:../renderers
     devDependencies:
       typescript:
         specifier: ^5.8.0

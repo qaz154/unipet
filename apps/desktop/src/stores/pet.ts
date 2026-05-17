@@ -28,7 +28,9 @@ export const usePetStore = defineStore('pet', () => {
       if (s.petScale != null) scale.value = s.petScale as number;
       if (s.petOpacity != null) opacity.value = s.petOpacity as number;
       if (s.themeId) themeId.value = s.themeId as string;
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.error('[pet-store] Failed to load persisted settings:', err instanceof Error ? err.message : err);
+    }
 
     if (!settingsListenerRegistered) {
       settingsListenerRegistered = true;

@@ -50,7 +50,6 @@ export class SVGRenderer implements RendererPlugin {
   private destroyed = false;
 
   private currentState: PetState = 'idle';
-  private visible = true;
   private mouseX = 0;
   private mouseY = 0;
   private eyeTrackingEnabled = false;
@@ -125,7 +124,6 @@ export class SVGRenderer implements RendererPlugin {
   }
 
   setVisible(vis: boolean): void {
-    this.visible = vis;
     this.wrapper.style.display = vis ? 'block' : 'none';
   }
 

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EventBus } from './event-bus.js';
 import { EmotionEngine } from './emotion-engine.js';
-import { createStateEvent, createEmotionEvent, NEUTRAL_EMOTION } from './events.js';
+import { createStateEvent, NEUTRAL_EMOTION } from './events.js';
 
 describe('EmotionEngine', () => {
   let bus: EventBus;

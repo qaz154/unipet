@@ -14,7 +14,7 @@ describe('wiggle-profiles', () => {
   });
 
   it('all profiles have valid amplitudes', () => {
-    for (const [name, profile] of Object.entries(WIGGLE_PROFILES)) {
+    for (const [_name, profile] of Object.entries(WIGGLE_PROFILES)) {
       expect(profile.shiftXAmp).toBeGreaterThanOrEqual(0);
       expect(profile.offsetYAmp).toBeGreaterThanOrEqual(0);
       expect(profile.freq).toBeGreaterThan(0);

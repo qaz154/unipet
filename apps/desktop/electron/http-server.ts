@@ -7,7 +7,7 @@
  */
 
 import { createServer, IncomingMessage, ServerResponse, Server } from 'http';
-import { writeFileSync, mkdirSync, unlinkSync, readFileSync, existsSync } from 'fs';
+import { writeFileSync, mkdirSync, unlinkSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { randomBytes } from 'crypto';

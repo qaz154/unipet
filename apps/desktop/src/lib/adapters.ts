@@ -29,7 +29,7 @@ export interface AdapterConfig {
  * Create an adapter config for the given adapter id.
  * Actual adapter startup happens in the main process via IPC.
  */
-export function getDefaultAdapterConfig(adapterId: string, enabled: boolean): AdapterConfig {
+export function getDefaultAdapterConfig(_adapterId: string, enabled: boolean): AdapterConfig {
   return {
     enabled,
     httpPort: DEFAULT_HTTP_PORT,
@@ -52,11 +52,12 @@ export async function startEnabledAdapters(
   }
 
   try {
-    // Request the main process to start adapters
     const result = await ep.invoke?.('adapter:start-all', enabledIds);
     return (result as { started: string[]; failed: Array<{ id: string; error: string }> }) ?? { started: [], failed: [] };
-  } catch {
-    return { started: [], failed: [] };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[adapters] Failed to start adapters via IPC:', msg);
+    return { started: [], failed: [{ id: 'ipc', error: msg }] };
   }
 }
 

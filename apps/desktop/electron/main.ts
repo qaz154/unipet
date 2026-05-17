@@ -10,13 +10,13 @@
  * - Session tracking with state priority
  */
 
-import { app, BrowserWindow, Tray, Menu, nativeImage, screen, ipcMain, shell, globalShortcut, dialog } from 'electron';
+import { app, BrowserWindow, Tray, Menu, nativeImage, screen, ipcMain, globalShortcut, dialog } from 'electron';
 import { join } from 'path';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, appendFileSync } from 'fs';
 import { homedir } from 'os';
 import { execFile } from 'child_process';
 import { fileURLToPath } from 'url';
-import { listAgentIds, AdapterRegistry, createBuiltinAdapters, MCPAdapter, HTTPAdapter, GitAdapter, HookBasedAdapter, BUILTIN_AGENTS } from '@unipet/adapters';
+import { listAgentIds, AdapterRegistry, MCPAdapter, HTTPAdapter, GitAdapter, HookBasedAdapter, BUILTIN_AGENTS } from '@unipet/adapters';
 import { ClaudeCodeAdapter } from '@unipet/adapters';
 import { EventBus, DEFAULT_HTTP_PORT, createLogger } from '@unipet/core';
 import type { PetEvent, Logger } from '@unipet/core';
@@ -114,7 +114,6 @@ let isPaused = false;
 let isDnd = false;
 let currentState = 'idle';
 let isMiniMode = false;
-let miniEdge: 'left' | 'right' | null = null;
 let dragSnapshot: { winX: number; winY: number; winW: number; winH: number; cursorX: number; cursorY: number } | null = null;
 const httpServer = new PetHttpServer();
 
@@ -132,7 +131,6 @@ const SIZE_PRESETS: Record<string, { width: number; height: number }> = {
 };
 const SNAP_TOLERANCE = 30;
 const MINI_OFFSET_RATIO = 0.486;
-const PEEK_OFFSET = 25;
 
 function getSavedPosition(): { x: number; y: number } {
   const pos = getSetting<{ x: number; y: number } | null>('windowPosition', null);
@@ -187,7 +185,7 @@ function createRenderWindow(): BrowserWindow {
       preload: join(dir, '..', 'electron', 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      sandbox: true,
     },
   });
 
@@ -252,17 +250,15 @@ function reassertTopmost(): void {
 
 // ─── Mini Mode ─────────────────────────────────────────
 
-function checkMiniModeSnap(winX: number, winY: number, winW: number, winH: number): boolean {
+function checkMiniModeSnap(winX: number, _winY: number, winW: number, _winH: number): boolean {
   const workArea = screen.getPrimaryDisplay().workArea;
   const centerX = winX + winW / 2;
 
   if (centerX - workArea.x < SNAP_TOLERANCE) {
-    miniEdge = 'left';
     enterMiniMode('left');
     return true;
   }
   if (workArea.x + workArea.width - centerX < SNAP_TOLERANCE) {
-    miniEdge = 'right';
     enterMiniMode('right');
     return true;
   }
@@ -291,7 +287,6 @@ function enterMiniMode(edge: 'left' | 'right'): void {
 function exitMiniMode(): void {
   if (!isMiniMode) return;
   isMiniMode = false;
-  miniEdge = null;
 
   const saved = getSetting<{ x: number; y: number }>('windowPosition', null as any);
   if (saved && renderWin && !renderWin.isDestroyed()) {
@@ -312,25 +307,6 @@ function animateWindow(targetX: number, targetY: number, duration: number): void
     const eased = t * (2 - t); // ease-out quadratic
     const x = Math.round(startX + (targetX - startX) * eased);
     const y = Math.round(startY + (targetY - startY) * eased);
-    renderWin?.setPosition(x, y);
-    if (t < 1) setTimeout(step, 16);
-  };
-  step();
-}
-
-function animateWindowParabola(targetX: number, targetY: number, duration: number): void {
-  if (!renderWin) return;
-  const [startX, startY] = renderWin.getPosition();
-  const startTime = Date.now();
-  const peakHeight = 40;
-
-  const step = () => {
-    const elapsed = Date.now() - startTime;
-    const t = Math.min(1, elapsed / duration);
-    const eased = t * (2 - t);
-    const x = Math.round(startX + (targetX - startX) * eased);
-    const arc = -4 * peakHeight * t * (t - 1);
-    const y = Math.round(startY + (targetY - startY) * eased - arc);
     renderWin?.setPosition(x, y);
     if (t < 1) setTimeout(step, 16);
   };
@@ -552,7 +528,7 @@ function openSettings(): void {
       preload: join(dir, '..', 'electron', 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      sandbox: true,
     },
   });
 
@@ -620,7 +596,7 @@ function openDashboard(): void {
       preload: join(dir, '..', 'electron', 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      sandbox: true,
     },
   });
 

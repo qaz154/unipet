@@ -8,8 +8,6 @@
 
 import {
   type ThemeDefinition,
-  type ThemeVariant,
-  type ThemeTimings,
   type ValidationError,
   validateTheme,
   DEFAULT_TIMINGS,
@@ -133,39 +131,5 @@ export class ThemeLoader {
 
   get count(): number {
     return this.themes.size;
-  }
-}
-
-/**
- * Node.js-only file utilities for theme import/export.
- *
- * These methods have been moved to `file-utils.ts` to avoid pulling
- * node:fs into the browser bundle.
- *
- * For Node.js usage, import from '@unipet/themes/file-utils' instead:
- *
- *   import { importThemeFromFile, exportThemeToFile, importAndPersistTheme } from '@unipet/themes/file-utils';
- *
- * @deprecated Use the functions from '@unipet/themes/file-utils' instead.
- */
-export class NodeFileUtils {
-  /**
-   * @deprecated Use `importThemeFromFile` from '@unipet/themes/file-utils'
-   */
-  static importFromFile(_filePath: string): { theme: ThemeDefinition | null; errors: ValidationError[] } {
-    throw new Error(
-      '[unipet/themes] NodeFileUtils.importFromFile has been removed from the browser bundle. ' +
-      'Use import { importThemeFromFile } from "@unipet/themes/file-utils" in Node.js environments.',
-    );
-  }
-
-  /**
-   * @deprecated Use `importAndPersistTheme` from '@unipet/themes/file-utils'
-   */
-  static async importAndPersist(_filePath: string, _userThemesDir: string): Promise<{ theme: ThemeDefinition | null; errors: ValidationError[] }> {
-    throw new Error(
-      '[unipet/themes] NodeFileUtils.importAndPersist has been removed from the browser bundle. ' +
-      'Use import { importAndPersistTheme } from "@unipet/themes/file-utils" in Node.js environments.',
-    );
   }
 }

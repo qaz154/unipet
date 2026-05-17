@@ -128,7 +128,6 @@ export class CSSPixelRenderer implements RendererPlugin {
   private lastUpdateTime = 0;
   private idlePauseTimer: ReturnType<typeof setTimeout> | undefined;
   private isPaused = false;
-  private visible = true;
   private currentEmotion: EmotionVector = { valence: 0, arousal: 0.1, dominance: 0.5 };
 
   async init(
@@ -177,7 +176,6 @@ export class CSSPixelRenderer implements RendererPlugin {
   }
 
   setVisible(vis: boolean): void {
-    this.visible = vis;
     this.canvas.style.display = vis ? 'block' : 'none';
     if (vis) this.resumeFromPause();
   }
@@ -217,7 +215,7 @@ export class CSSPixelRenderer implements RendererPlugin {
   getGridSize(): number { return this.config.gridSize; }
 
   renderFrame(time?: number): void {
-    const { gridSize, palette, body, faces } = this.config;
+    const { gridSize, palette, body, faces: _faces } = this.config;
     const t = (time ?? (performance.now() / 1000)) - this.startTime;
 
     // Get wiggle profile for current state

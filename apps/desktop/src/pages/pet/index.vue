@@ -683,7 +683,6 @@ let coreBus: EventBus | null = null;
 let stateManager: StateManager | null = null;
 let emotionEngine: EmotionEngine | null = null;
 let bubbleManager: BubbleManager | null = null;
-let adapterStarted = false;
 const demoTimers: ReturnType<typeof setTimeout>[] = [];
 
 onMounted(async () => {
@@ -829,7 +828,7 @@ onMounted(async () => {
   // Start adapters via IPC (they run in the main process)
   try {
     const result = await startEnabledAdapters(coreBus, settingsStore.enabledAdapters);
-    adapterStarted = result.started.length > 0;
+    // adapters started
     if (result.failed.length > 0) {
       console.warn('[UniPet] Some adapters failed to start:', result.failed);
     }
@@ -873,7 +872,7 @@ onUnmounted(() => {
   stateManager = null;
   emotionEngine = null;
   bubbleManager = null;
-  adapterStarted = false;
+  // adapters stopped
 });
 </script>
 

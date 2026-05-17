@@ -19,7 +19,6 @@
   },
   "dependencies": {
     "@unipet/core": "workspace:*",
-    "@unipet/adapters": "workspace:*",
     "@unipet/mcp-server": "workspace:*"
   },
   "devDependencies": {

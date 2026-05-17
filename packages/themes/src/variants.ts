@@ -1,4 +1,4 @@
-import type { ThemeDefinition, ThemeVariant, ThemeTimings, StateDefinition } from './schema.js';
+import type { ThemeDefinition, ThemeVariant, StateDefinition } from './schema.js';
 
 export function mergeVariant(base: ThemeDefinition, variant: ThemeVariant): ThemeDefinition {
   const merged = { ...base };

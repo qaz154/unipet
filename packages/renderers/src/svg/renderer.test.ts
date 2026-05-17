@@ -130,7 +130,7 @@ describe('SVGRenderer', () => {
     });
     await r.setState('idle');
     // Start a long fade; do not await it
-    const pending = r.setState('happy', { duration: 5000 });
+    void r.setState('happy', { duration: 5000 });
     // Allow rAF to fire so the setTimeout is registered
     await Promise.resolve();
     await Promise.resolve();

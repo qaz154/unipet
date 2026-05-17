@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AdapterRegistry } from './registry.js';
 import { EventBus } from '@unipet/core';
-import type { AgentAdapter, AdapterContext } from './adapter.js';
+import type { AgentAdapter } from './adapter.js';
 
 function createMockAdapter(id: string): AgentAdapter {
   return {

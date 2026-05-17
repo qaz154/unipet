@@ -1,8 +1,5 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import { useI18n } from '../../composables/useI18n';
-
-const { t } = useI18n();
 const getEp = () => window.unipet;
 
 interface SessionEntry {
@@ -58,7 +55,12 @@ onMounted(() => {
   getEp()?.on?.('pet:event', handleEvent);
 });
 
-onUnmounted(() => {});
+onUnmounted(() => {
+  // ipcRenderer.on cannot be removed from renderer side,
+  // but we prevent the callback from mutating state after unmount
+  sessions.value = new Map();
+  events.value = [];
+});
 
 function windowClose() { getEp()?.windowClose(); }
 function windowMinimize() { getEp()?.windowMinimize(); }

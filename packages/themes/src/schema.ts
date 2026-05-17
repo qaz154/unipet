@@ -5,7 +5,7 @@
  * Merges clawd-on-desk's rich theme schema with openpets' pet pack format.
  */
 
-import type { PetState, EmotionVector } from '@unipet/core';
+import type { PetState } from '@unipet/core';
 
 export interface AnimationTier {
   /** Minimum active sessions to trigger this tier */

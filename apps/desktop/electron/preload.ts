@@ -53,8 +53,14 @@ contextBridge.exposeInMainWorld('unipet', {
   windowMinimize: () => ipcRenderer.invoke('window:minimize'),
   windowMaximize: () => ipcRenderer.invoke('window:maximize'),
 
-  // Adapter IPC — start/stop adapters in the main process
-  invoke: (channel: string, ...args: unknown[]) => ipcRenderer.invoke(channel, ...args),
+  // Adapter IPC — allowlisted channels only
+  invoke: (channel: string, ...args: unknown[]) => {
+    const allowedInvoke = [
+      'adapter:start-all', 'adapter:stop-all',
+    ];
+    if (!allowedInvoke.includes(channel)) return Promise.reject(new Error(`IPC channel "${channel}" not allowed`));
+    return ipcRenderer.invoke(channel, ...args);
+  },
 
   // Permission response
   respondToPermission: (permissionId: string, action: string) =>

@@ -21,7 +21,6 @@ export class Live2DRenderer implements RendererPlugin {
   readonly supportedFormats = ['live2d', 'moc3', 'model3'];
 
   private wrapper!: HTMLDivElement;
-  private visible = true;
 
   async init(
     container: HTMLElement,
@@ -44,7 +43,7 @@ export class Live2DRenderer implements RendererPlugin {
 
   async setState(_state: PetState, _options?: TransitionOptions): Promise<void> {}
   setEmotion(_emotion: EmotionVector): void {}
-  setVisible(vis: boolean): void { this.visible = vis; this.wrapper.style.display = vis ? 'flex' : 'none'; }
+  setVisible(vis: boolean): void { this.wrapper.style.display = vis ? 'flex' : 'none'; }
   setScale(scale: number): void { this.wrapper.style.transform = `scale(${scale})`; }
   setOpacity(opacity: number): void { this.wrapper.style.opacity = String(opacity); }
   update(_dt: number): void {}

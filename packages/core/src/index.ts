@@ -15,7 +15,6 @@ export {
   createStateEvent,
   createSpeechEvent,
   createEmotionEvent,
-  createPermissionEvent,
   createMoveEvent,
   type PermissionResponse,
   isValidState,

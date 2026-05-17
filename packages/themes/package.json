@@ -31,8 +31,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@unipet/core": "workspace:*",
-    "@unipet/renderers": "workspace:*"
+    "@unipet/core": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.8.0",
