@@ -15,7 +15,7 @@ Works with **Claude Code, Codex, Cursor, Gemini CLI, Copilot, Kiro, Kimi** and a
 
 ```
   ╭──────────╮
-  │  ◕    ◕  │   "Tests passing! 149/149 ✓"
+  │  ◕    ◕  │   "Tests passing! 159/159 ✓"
   │   ╰──╯   │
   ╰──────────╯
 ```
@@ -169,7 +169,7 @@ pnpm start              # One-command: install + build + dev
 # Or step by step:
 pnpm install
 pnpm build
-pnpm test              # 149 tests
+pnpm test              # 159 tests
 pnpm --filter @unipet/desktop dev  # Dev mode with hot reload
 ```
 
