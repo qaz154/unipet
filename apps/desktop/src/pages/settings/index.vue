@@ -6,37 +6,26 @@
  *   ┌─ titlebar (search + mode toggle + collapse) ─┐
  *   ├ sidebar │ scrollable settings list │ preview ┤
  *   └─────────────────────────────────────────────┘
- *
- * Features:
- * - Top search bar filters rows by label/desc match
- * - Collapsible sidebar (icon-only / labelled)
- * - Live pet preview canvas reflecting scale/opacity/theme
- * - Light / dark / auto color mode
  */
 
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { usePetStore } from '../../stores/pet';
 import { useSettingsStore } from '../../stores/settings';
 import { useTheme } from '../../composables/useTheme';
 import { useI18n } from '../../composables/useI18n';
-import {
-  PET_CHARACTERS,
-  PW,
-  PH,
-  renderGrid,
-  type PetCharacter,
-} from '../../lib/pet-characters';
+import { useColorMode } from '../../composables/useColorMode';
+import { useSettingsSearch, type TabId } from '../../composables/useSettingsSearch';
+import { useAgents } from '../../composables/useAgents';
+import { usePetPreview } from '../../composables/usePetPreview';
+import { PET_CHARACTERS, PW, PH } from '../../lib/pet-characters';
 
 const petStore = usePetStore();
 const settingsStore = useSettingsStore();
-// Dynamic getter for window.unipet to avoid stale references
 const getEp = () => window.unipet;
-// Side-effect: registers built-in theme.json files with the shared ThemeLoader.
 useTheme();
 const { t, setLocale, getLocale, getAvailableLocales, loadLocale } = useI18n();
 
 function onLocaleChange(value: string) {
-  // Narrow the raw string from the <select> back into the Locale union.
   const available = getAvailableLocales().map((l) => l.code as string);
   if (available.includes(value)) {
     setLocale(value as never);
@@ -45,32 +34,9 @@ function onLocaleChange(value: string) {
 
 onMounted(() => loadLocale());
 
-// ─── Color mode ────────────────────────────────────────────
-const prefersLight = ref(false);
-let mql: MediaQueryList | null = null;
-function syncSystemColor(e?: MediaQueryListEvent) {
-  prefersLight.value = e
-    ? !e.matches
-    : !window.matchMedia('(prefers-color-scheme: dark)').matches;
-}
+// ─── Composables ──────────────────────────────────────────
+const { resolvedMode } = useColorMode(() => settingsStore.colorMode);
 
-const resolvedMode = computed<'light' | 'dark'>(() => {
-  if (settingsStore.colorMode === 'light') return 'light';
-  if (settingsStore.colorMode === 'dark') return 'dark';
-  return prefersLight.value ? 'light' : 'dark';
-});
-
-onMounted(() => {
-  mql = window.matchMedia('(prefers-color-scheme: dark)');
-  syncSystemColor();
-  mql.addEventListener?.('change', syncSystemColor as never);
-});
-onUnmounted(() => {
-  mql?.removeEventListener?.('change', syncSystemColor as never);
-});
-
-// ─── Tabs ──────────────────────────────────────────────────
-type TabId = 'general' | 'appearance' | 'behavior' | 'agents' | 'about';
 const activeTab = ref<TabId>('general');
 
 const tabs = computed(() => [
@@ -81,192 +47,28 @@ const tabs = computed(() => [
   { id: 'about' as TabId, icon: 'ⓘ', label: t('settings.about') },
 ]);
 
-// ─── Search filter ─────────────────────────────────────────
-const search = ref('');
-const normalizedSearch = computed(() => search.value.trim().toLowerCase());
+const {
+  search, matchesSearch, anyMatchAcrossTabs,
+  generalRows, showGeneralLanguage, appearanceRows, behaviorRows, isTabVisible,
+} = useSettingsSearch({
+  t,
+  activeTab,
+  getFilteredAgentsCount: () => filteredAgents.value.length,
+});
 
-function matchesSearch(...fields: (string | undefined)[]): boolean {
-  if (!normalizedSearch.value) return true;
-  return fields.some((f) => f && f.toLowerCase().includes(normalizedSearch.value));
-}
+const {
+  filteredAgents, expandedAgent, agentInstalling, agentStatus,
+  isAgentEnabled, toggleAgent,
+} = useAgents({ matchesSearch, t });
 
-const anyMatchAcrossTabs = computed(() => normalizedSearch.value.length > 0);
-
-// ─── Pets ──────────────────────────────────────────────────
 const currentPetId = computed(() => petStore.themeId);
 function selectPet(id: string) { petStore.themeId = id; }
 
-// ─── Agents ────────────────────────────────────────────────
-const agents = [
-  { id: 'claude-code', name: 'Claude Code', desc: 'Anthropic AI', badge: 'hooks', hasPerm: true },
-  { id: 'codex', name: 'Codex CLI', desc: 'OpenAI', badge: 'hooks', hasPerm: true },
-  { id: 'cursor', name: 'Cursor', desc: 'AI editor', badge: 'hooks', hasPerm: false },
-  { id: 'gemini', name: 'Gemini CLI', desc: 'Google AI', badge: 'hooks', hasPerm: false },
-  { id: 'copilot', name: 'Copilot', desc: 'GitHub', badge: 'hooks', hasPerm: false },
-  { id: 'codebuddy', name: 'CodeBuddy', desc: 'Tencent', badge: 'hooks', hasPerm: true },
-  { id: 'kiro', name: 'Kiro CLI', desc: 'AWS', badge: 'hooks', hasPerm: false },
-  { id: 'kimi', name: 'Kimi CLI', desc: 'Moonshot', badge: 'hooks', hasPerm: true },
-  { id: 'opencode', name: 'OpenCode', desc: 'Open source', badge: 'plugin', hasPerm: false },
-  { id: 'openclaw', name: 'OpenClaw', desc: 'Open source', badge: 'plugin', hasPerm: false },
-  { id: 'hermes', name: 'Hermes', desc: 'Python', badge: 'plugin', hasPerm: false },
-  { id: 'mcp', name: 'MCP Server', desc: 'Any MCP agent', badge: 'protocol', hasPerm: false },
-  { id: 'http', name: 'HTTP API', desc: 'REST + SSE', badge: 'protocol', hasPerm: false },
-  { id: 'git', name: 'Git Monitor', desc: 'Git state', badge: 'protocol', hasPerm: false },
-];
-const filteredAgents = computed(() =>
-  agents.filter((a) => matchesSearch(a.name, a.desc, a.id, a.badge)),
+const { previewCanvas, previewChar, resetTimestamp } = usePetPreview(
+  () => currentPetId.value,
 );
-const expandedAgent = ref<string | null>(null);
-const agentInstalling = ref<string | null>(null);
-const agentStatus = ref<Record<string, string>>({});
 
-function isAgentEnabled(id: string) { return settingsStore.enabledAdapters.includes(id); }
-
-async function toggleAgent(id: string) {
-  const idx = settingsStore.enabledAdapters.indexOf(id);
-  const enabling = idx === -1;
-  const agent = agents.find((a) => a.id === id);
-  const needsInstall = agent?.badge !== 'protocol';
-
-  if (enabling) {
-    settingsStore.enabledAdapters.push(id);
-
-    if (!needsInstall) {
-      agentStatus.value[id] = t('status.installed');
-      setTimeout(() => { delete agentStatus.value[id]; }, 3000);
-      return;
-    }
-
-    agentInstalling.value = id;
-    agentStatus.value[id] = t('status.installing');
-
-    try {
-      const ep = window.unipet;
-      if (ep?.installAgent) {
-        const result = await ep.installAgent(id);
-        if (result?.success) {
-          agentStatus.value[id] = t('status.installed');
-        } else {
-          agentStatus.value[id] = `${t('status.error')}: ${result?.error || 'Unknown'}`;
-          settingsStore.enabledAdapters.splice(settingsStore.enabledAdapters.indexOf(id), 1);
-        }
-      } else {
-        agentStatus.value[id] = 'Installed ✓';
-      }
-    } catch (err) {
-      agentStatus.value[id] = `Error: ${(err as Error).message}`;
-      settingsStore.enabledAdapters.splice(settingsStore.enabledAdapters.indexOf(id), 1);
-    } finally {
-      agentInstalling.value = null;
-      setTimeout(() => { delete agentStatus.value[id]; }, 8000);
-    }
-  } else {
-    settingsStore.enabledAdapters.splice(idx, 1);
-    agentStatus.value[id] = t('status.disabled');
-    setTimeout(() => { delete agentStatus.value[id]; }, 2000);
-  }
-}
-
-// ─── Live pet preview ──────────────────────────────────────
-const previewCanvas = ref<HTMLCanvasElement | null>(null);
-let previewCtx: CanvasRenderingContext2D | null = null;
-let previewBreath = 0;
-let previewBlink = 0;
-let isBlinking = false;
-let previewRaf: number | null = null;
-let lastTs = 0;
-
-const previewChar = computed<PetCharacter>(() => {
-  return PET_CHARACTERS.find((c) => c.id === currentPetId.value) ?? PET_CHARACTERS[0];
-});
-
-function drawPreview(dt: number) {
-  if (!previewCtx || !previewCanvas.value) return;
-  previewBreath += dt * 0.8;
-  previewBlink += dt;
-  if (!isBlinking && previewBlink > 3 + Math.random() * 3) {
-    isBlinking = true;
-    previewBlink = 0;
-  } else if (isBlinking && previewBlink > 0.18) {
-    isBlinking = false;
-    previewBlink = 0;
-  }
-
-  previewCtx.clearRect(0, 0, PW, PH);
-  const ch = previewChar.value;
-  const eyes = ch.eyes('idle', isBlinking);
-  const face = ch.face('idle', null);
-  renderGrid(previewCtx, ch.sprite(), eyes, face, previewBreath, 0, 1, 1, 0, 0);
-}
-
-function loopPreview(ts: number) {
-  if (lastTs === 0) lastTs = ts;
-  const dt = Math.min(0.1, (ts - lastTs) / 1000);
-  lastTs = ts;
-  drawPreview(dt);
-  previewRaf = requestAnimationFrame(loopPreview);
-}
-
-onMounted(async () => {
-  await nextTick();
-  if (previewCanvas.value) {
-    previewCtx = previewCanvas.value.getContext('2d');
-    if (previewCtx) {
-      previewCtx.imageSmoothingEnabled = false;
-      previewRaf = requestAnimationFrame(loopPreview);
-    }
-  }
-});
-
-onUnmounted(() => {
-  if (previewRaf !== null) cancelAnimationFrame(previewRaf);
-});
-
-// Refresh canvas tints when color mode changes (the canvas background is CSS-driven)
-watch(resolvedMode, () => { lastTs = 0; });
-
-// ─── Section visibility helpers ───────────────────────────
-const generalRows = computed(() => ({
-  language: matchesSearch(t('settings.language'), t('settings.languageDesc'), 'locale'),
-  alwaysOnTop: matchesSearch(t('settings.alwaysOnTop'), t('settings.alwaysOnTopDesc')),
-  edgeSnapping: matchesSearch(t('settings.edgeSnapping'), t('settings.edgeSnappingDesc')),
-  screenPrivacy: matchesSearch(t('settings.screenPrivacy'), t('settings.screenPrivacyDesc')),
-  colorMode: matchesSearch('Color mode', '外观模式', 'dark', 'light', 'auto'),
-}));
-const showGeneralLanguage = computed(() => Object.values(generalRows.value).some(Boolean));
-
-const appearanceRows = computed(() => ({
-  character: matchesSearch(t('settings.petCharacter'), 'pet', 'character'),
-  scale: matchesSearch(t('settings.petScale'), t('settings.petScaleDesc'), 'size', 'scale'),
-  opacity: matchesSearch(t('settings.opacity'), t('settings.opacityDesc'), 'transparency'),
-}));
-
-const behaviorRows = computed(() => ({
-  clickReactions: matchesSearch(t('settings.clickReactions'), t('settings.clickReactionsDesc')),
-  drag: matchesSearch(t('settings.dragToMove'), t('settings.dragToMoveDesc')),
-  sound: matchesSearch(t('settings.soundEffects'), t('settings.soundEffectsDesc')),
-  sleepSeq: matchesSearch(t('settings.sleepSequence'), 'sleep'),
-  idleTimeout: matchesSearch(t('settings.idleTimeout'), t('settings.idleTimeoutDesc')),
-  hideBubbles: matchesSearch('Hide bubbles', '隐藏气泡', 'bubble'),
-}));
-
-function isTabVisible(tab: TabId): boolean {
-  if (!normalizedSearch.value) return true;
-  if (tab === 'general') return Object.values(generalRows.value).some(Boolean);
-  if (tab === 'appearance') return Object.values(appearanceRows.value).some(Boolean);
-  if (tab === 'behavior') return Object.values(behaviorRows.value).some(Boolean);
-  if (tab === 'agents') return filteredAgents.value.length > 0;
-  if (tab === 'about') return matchesSearch('about', 'version', '版本');
-  return false;
-}
-
-// Auto-switch to first matching tab when search activates
-watch(normalizedSearch, (q) => {
-  if (!q) return;
-  const order: TabId[] = ['general', 'appearance', 'behavior', 'agents', 'about'];
-  const first = order.find(isTabVisible);
-  if (first) activeTab.value = first;
-});
+watch(resolvedMode, () => { resetTimestamp(); });
 </script>
 
 <template>

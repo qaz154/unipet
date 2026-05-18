@@ -11,8 +11,8 @@
  * - Sound effects with per-source cooldown
  */
 
-import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
-import { EventBus, StateManager, EmotionEngine, BubbleManager, STATE_PRIORITY } from '@unipet/core';
+import { ref, onMounted, onUnmounted, watch, nextTick, toRef } from 'vue';
+import { EventBus, StateManager, EmotionEngine, BubbleManager } from '@unipet/core';
 import type { PetState } from '@unipet/core';
 import { SVGRenderer, CSSPixelRenderer, SpriteRenderer } from '@unipet/renderers';
 import type { CSSPixelConfig, SpriteConfig } from '@unipet/renderers';
@@ -20,10 +20,14 @@ import { usePetStore } from '../../stores/pet';
 import { useSettingsStore } from '../../stores/settings';
 import { useI18n } from '../../composables/useI18n';
 import { useTheme } from '../../composables/useTheme';
-import { PET_CHARACTERS, PW, PH, type PetCharacter } from '../../lib/pet-characters';
+import { PW, PH } from '../../lib/pet-characters';
 import { useBubble } from '../../composables/useBubble';
 import { useParticles } from '../../composables/useParticles';
 import { startEnabledAdapters, stopAllAdapters } from '../../lib/adapters';
+import { usePetSize } from '../../composables/usePetSize';
+import { usePetDrag } from '../../composables/usePetDrag';
+import { useCharacterManager, buildStateFiles, type RendererRefs } from '../../composables/useCharacterManager';
+import { usePetEngine } from '../../composables/usePetEngine';
 
 /** Dynamic getter — avoids stale reference after HMR or timing issues */
 const getEp = () => window.unipet;
@@ -32,30 +36,21 @@ const { t, loadLocale } = useI18n();
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const canvasWrapRef = ref<HTMLDivElement | null>(null);
 const svgContainerRef = ref<HTMLDivElement | null>(null);
-let ctx: CanvasRenderingContext2D;
-let svgRenderer: SVGRenderer | null = null;
-let cssPixelRenderer: CSSPixelRenderer | null = null;
-let spriteRenderer: SpriteRenderer | null = null;
 
 // ── Render Mode ──────────────────────────────────────
 const themeLoader = useTheme();
 const renderMode = ref<'css-pixel' | 'svg' | 'css-theme' | 'sprite'>('css-pixel');
 
-// Resolve SVG asset paths from theme glob
-const svgAssets = import.meta.glob('../../../themes/svg-cat/*.svg', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
-
-function resolveSvgUrl(themeId: string, filename: string): string {
-  const key = `../../../themes/${themeId}/${filename}`;
-  return svgAssets[key] || filename;
-}
-
-function buildStateFiles(themeId: string, states: Record<string, { files: string[] }>): Record<string, string[]> {
-  const result: Record<string, string[]> = {};
-  for (const [state, def] of Object.entries(states)) {
-    result[state] = def.files.map(f => resolveSvgUrl(themeId, f));
-  }
-  return result;
-}
+// Shared mutable renderer references (used by character manager, lifecycle, and engine)
+const renderers: RendererRefs & {
+  cssPixelRenderer: CSSPixelRenderer | null;
+  spriteRenderer: SpriteRenderer | null;
+} = {
+  ctx: undefined,
+  svgRenderer: null,
+  cssPixelRenderer: null,
+  spriteRenderer: null,
+};
 
 const petStore = usePetStore();
 const settingsStore = useSettingsStore();
@@ -64,497 +59,53 @@ const { bubbleVisible, bubbleChars, bubbleKind, bubblePermissionId } = bubble;
 const particleSystem = useParticles(PW, PH);
 const isMiniMode = ref(false);
 
-// Character selection — built-ins + user-imported (not mutated globally)
-const customCharacters = ref<PetCharacter[]>([]);
-const allCharacters = computed<PetCharacter[]>(() => [...PET_CHARACTERS, ...customCharacters.value]);
-const charIndex = ref(0);
-const currentChar = computed(() => allCharacters.value[charIndex.value] ?? PET_CHARACTERS[0]);
-
-// S/M/L size presets — combined with petStore.scale slider
-type PetSize = 'S' | 'M' | 'L';
-const sizePresets: Record<PetSize, number> = { S: 0.5, M: 0.75, L: 1.2 };
-const currentSize = ref<PetSize>('M');
-const displayScale = computed(() => {
-  const sizeScale = sizePresets[currentSize.value];
-  return Math.max(0.3, Math.min(3.0, sizeScale * petStore.scale));
-});
-
-// Canvas display dimensions in CSS pixels: native 24×32 scaled by displayScale (×8)
-const canvasDisplayWidth = computed(() => PW * 8 * displayScale.value);
-const canvasDisplayHeight = computed(() => PH * 8 * displayScale.value);
-
-function cycleSize() {
-  const sizes: PetSize[] = ['S', 'M', 'L'];
-  const idx = sizes.indexOf(currentSize.value);
-  currentSize.value = sizes[(idx + 1) % sizes.length];
-  showBubble(`Size: ${currentSize.value}`);
-}
-
-// ─── Session Tracking ──────────────────────────────────
-
-interface Session {
-  state: string;
-  source: string;
-  agentId: string;
-  timestamp: number;
-  pid?: number;
-}
-
-const sessions = new Map<string, Session>();
-const MAX_SESSIONS = 20;
-
-function resolveDisplayState(): string {
-  let bestState = 'idle';
-  let bestPriority = -1;
-  for (const [, session] of sessions) {
-    const priorityMap: Record<string, number> = STATE_PRIORITY;
-    const p = priorityMap[session.state] ?? 1;
-    if (p > bestPriority) {
-      bestPriority = p;
-      bestState = session.state;
-    }
-  }
-  return bestState;
-}
-
-function updateSession(source: string, state: string, agentId: string = 'unknown') {
-  sessions.set(source, { state, source, agentId, timestamp: Date.now() });
-  if (sessions.size > MAX_SESSIONS) {
-    const oldest = sessions.keys().next().value;
-    if (oldest) sessions.delete(oldest);
-  }
-  const displayState = resolveDisplayState();
-  petStore.setState(displayState as PetState);
-}
-
-// ─── Eye Tracking (lerp easing) ────────────────────────
-
-let eyeX = 0, eyeY = 0;
-let targetEyeX = 0, targetEyeY = 0;
-const EYE_EASE = 0.15;
-const EYE_MAX_OFFSET = 3;
-let lastMouseTime = 0;
-
-function updateEyeTarget() {
-  if (!canvasRef.value) return;
-  const rect = canvasRef.value.getBoundingClientRect();
-  const cx = rect.left + rect.width / 2;
-  const cy = rect.top + rect.height / 2;
-  const dx = mouseX - cx;
-  const dy = mouseY - cy;
-  const dist = Math.sqrt(dx * dx + dy * dy);
-  const scale = Math.min(1, dist / 300);
-  targetEyeX = (dx / (dist || 1)) * EYE_MAX_OFFSET * scale;
-  targetEyeY = (dy / (dist || 1)) * EYE_MAX_OFFSET * 0.5 * scale;
-  lastMouseTime = Date.now();
-}
-
-function lerpEyes() {
-  eyeX += (targetEyeX - eyeX) * EYE_EASE;
-  eyeY += (targetEyeY - eyeY) * EYE_EASE;
-}
-
-// ─── Sound Effects (10s cooldown) ──────────────────────
-
-import { createSoundPlayer } from '../../lib/sounds.js';
-
-const soundPlayer = createSoundPlayer();
-
-function playStateSound(state: string) {
-  if (!settingsStore.soundEnabled) return;
-  soundPlayer.playState(state);
-}
-
-// ─── Adaptive Tick Rate ────────────────────────────────
-
-const FAST_TICK_MS = 50;       // during drag
-const BOOST_TICK_MS = 100;     // recently active
-const IDLE_TICK_MS = 250;      // idle
-const LOW_POWER_TICK_MS = 5000; // low-power idle
-let currentTickMs = IDLE_TICK_MS;
-let tickInterval: ReturnType<typeof setInterval> | null = null;
-
-function updateTickRate() {
-  const now = Date.now();
-  let nextMs: number;
-  if (isDrag) {
-    nextMs = FAST_TICK_MS;
-  } else if (now - lastMouseTime < 2000) {
-    nextMs = BOOST_TICK_MS;
-  } else if (petStore.currentState === 'sleeping') {
-    nextMs = LOW_POWER_TICK_MS;
-  } else if (petStore.currentState === 'idle') {
-    nextMs = IDLE_TICK_MS;
-  } else {
-    nextMs = BOOST_TICK_MS;
-  }
-
-  // Only restart interval if the rate actually changed (avoid interval churn)
-  if (nextMs === currentTickMs && tickInterval) return;
-  currentTickMs = nextMs;
-  if (tickInterval) clearInterval(tickInterval);
-  tickInterval = setInterval(tick, currentTickMs);
-}
-
-// ─── Drag (from hit window IPC) ────────────────────────
-
-let mouseX = 0, mouseY = 0;
-let isDrag = false;
-let clickCd = 0;
-let bounceY = 0, bounceV = 0;
-let throwVx = 0, throwVy = 0;
-let petRotation = 0, petRotV = 0;
-let squishX = 1, squishY = 1;
-let stateFlash = 0;
-
-// ── Annoyance System ───────────────────────────────────
-let annoyanceLevel = 0;
-const ANNOYANCE_THRESHOLDS = { stare: 3, hiss: 6, flee: 10 };
-let lastAnnoyanceTime = 0;
-const ANNOYANCE_DECAY_RATE = 0.08; // per second
-
-function addAnnoyance(amount: number) {
-  annoyanceLevel = Math.min(annoyanceLevel + amount, 15);
-  lastAnnoyanceTime = Date.now();
-}
-
-function getAnnoyanceState(): string {
-  if (annoyanceLevel >= ANNOYANCE_THRESHOLDS.flee) return 'hiding';
-  if (annoyanceLevel >= ANNOYANCE_THRESHOLDS.hiss) return 'angry';
-  if (annoyanceLevel >= ANNOYANCE_THRESHOLDS.stare) return 'attention';
-  return '';
-}
-
-// Listen for click from hit window — hit window sends (x, y) as two args
-function onHitClick(...args: unknown[]) {
-  const x = args[0] as number;
-  const y = args[1] as number;
-  mouseX = x; mouseY = y;
-  onClick();
-}
-
-function onClick() {
-  if (clickCd > 0 || !settingsStore.clickReactions) return;
-  bounceV = -3; squishX = 1.1; squishY = 0.88; clickCd = 0.5;
-  petRotation += (Math.random() - 0.5) * 0.15;
-  addAnnoyance(1.5);
-
-  const annoyState = getAnnoyanceState();
-  if (annoyState === 'hiding') {
-    showBubble(t('pet.annoyed'));
-    petStore.setState('angry' as PetState);
-  } else {
-    showBubble(t('pet.click'));
-    petStore.setState('happy' as PetState);
-  }
-
-  updateSession('click', petStore.currentState);
-  soundPlayer.playClick();
-  const returnState = petStore.currentState;
-  setTimeout(() => {
-    if (petStore.currentState === returnState) {
-      petStore.setState('idle' as PetState);
-      updateSession('click-return', 'idle');
-    }
-  }, 1500);
-}
-
-// ─── Particles (delegated to useParticles composable) ──
-
-// ─── Animation State ──────────────────────────────────
-
-let blinkTimer = 0, isBlinking = false, blinkDuration = 0;
-let idleTimer = 0, curAction: string | null = null, actionTimer = 0;
-let breathT = 0;
-
-// ─── Tick Loop (adaptive rate) ────────────────────────
-
-function tick() {
-  const dt = currentTickMs / 1000;
-  const state = petStore.currentState;
-
-  // Blink
-  blinkTimer += dt;
-  const blinkInterval = state === 'idle' || state === 'sleeping' ? 3 + Math.random() * 3 : 2 + Math.random() * 2;
-  if (!isBlinking && blinkTimer > blinkInterval) { isBlinking = true; blinkDuration = 0; }
-  if (isBlinking) { blinkDuration += dt; if (blinkDuration > 0.15) { isBlinking = false; blinkTimer = 0; } }
-
-  // Breathing
-  const breathSpeed = state === 'sleeping' ? 0.3 : state === 'working' || state === 'editing' ? 1.2 : 0.8;
-  breathT += dt * breathSpeed;
-
-  // Idle actions
-  if (state === 'idle' || state === 'sleeping') {
-    idleTimer += dt;
-    if (curAction) { actionTimer -= dt; if (actionTimer <= 0) curAction = null; }
-    else if (idleTimer > 5 + Math.random() * 10) {
-      curAction = 'yawn'; actionTimer = 2; idleTimer = 0;
-      if (Math.random() < 0.3) {
-        const m = [t('pet.idle1'), t('pet.idle2'), t('pet.idle3')];
-        showBubble(m[Math.floor(Math.random() * m.length)]);
-      }
-    }
-  } else { idleTimer = 0; curAction = null; }
-
-  // Physics (2D)
-  if (!isDrag) {
-    // Vertical bounce
-    bounceV += 20 * dt; bounceY += bounceV;
-    if (bounceY > 0) { bounceY = 0; bounceV = -bounceV * 0.35; }
-    if (Math.abs(bounceV) < 0.3) { bounceV = 0; bounceY = 0; }
-
-    // Throw physics (horizontal + rotation)
-    // Clamp dt to avoid instability at low tick rates
-    const pdt = Math.min(dt, 0.25);
-    if (Math.abs(throwVx) > 0.1 || Math.abs(throwVy) > 0.1) {
-      bounceY += throwVy * pdt;
-      throwVy += 40 * pdt; // gravity
-      throwVx *= Math.max(0, 1 - 3 * pdt); // friction (clamped positive)
-      throwVy *= Math.max(0, 1 - 3 * pdt);
-      petRotV = throwVx * 0.01;
-      petRotation += petRotV * pdt;
-      petRotV *= Math.max(0, 1 - 5 * pdt);
-
-      // Screen edge bounce (visual)
-      if (Math.abs(bounceY) > 30) {
-        bounceY = Math.sign(bounceY) * 30;
-        throwVy = -throwVy * 0.3;
-      }
-      if (Math.abs(throwVx) < 0.1 && Math.abs(throwVy) < 0.3) {
-        throwVx = 0; throwVy = 0;
-      }
-    } else {
-      petRotation += (0 - petRotation) * Math.min(3 * pdt, 1); // return to neutral
-    }
-
-    // Annoyance decay
-    if (annoyanceLevel > 0 && Date.now() - lastAnnoyanceTime > 8000) {
-      annoyanceLevel = Math.max(0, annoyanceLevel - ANNOYANCE_DECAY_RATE * pdt);
-    }
-  } else {
-    petRotation += (0 - petRotation) * Math.min(4 * dt, 1);
-    annoyanceLevel = Math.max(0, annoyanceLevel - 0.3 * Math.min(dt, 1));
-  }
-
-  squishX += (1 - squishX) * 0.1; squishY += (1 - squishY) * 0.1;
-  if (clickCd > 0) clickCd -= dt;
-  if (stateFlash > 0) stateFlash -= dt * 2;
-
-  // Eye tracking lerp
-  lerpEyes();
-
-  // Particles
-  particleSystem.emit(state);
-  particleSystem.update(dt);
-
-  // Update tick rate based on activity
-  updateTickRate();
-
-  // Draw
-  render();
-}
-
-function render() {
-  if (!ctx || !canvasRef.value) return;
-  const state = petStore.currentState;
-  const cw = canvasRef.value.width;
-  const ch = canvasRef.value!.height;
-  const sx = cw / PW; // horizontal scale (e.g., 4.5)
-  const sy = ch / PH; // vertical scale (e.g., 4.5)
-
-  ctx.clearRect(0, 0, cw, ch);
-  ctx.save();
-  ctx.translate(cw / 2, ch / 2);
-  ctx.rotate(petRotation);
-  ctx.scale(squishX, squishY);
-  ctx.translate(-cw / 2, -ch / 2);
-
-  // Scaled sprite rendering
-  const sprite = currentChar.value.sprite();
-  const basePhase = breathT * 0.8 * Math.PI * 2;
-  for (let py = 0; py < PH; py++) {
-    const depthFactor = (PH - py) / PH;
-    const phase = basePhase + py * 0.12;
-    const ox = Math.sin(phase * 0.5) * 0.15 * depthFactor;
-    const oy = Math.cos(phase) * 0.4 * depthFactor;
-    const row = sprite[py];
-    for (let px = 0; px < PW; px++) {
-      const c = row[px];
-      if (c) {
-        const rx = Math.round(px * sx + ox * sx);
-        const ry = Math.round(py * sy + oy * sy + bounceY * sy);
-        ctx.fillStyle = c;
-        ctx.fillRect(rx, ry, Math.ceil(sx), Math.ceil(sy));
-      }
-    }
-  }
-
-  // Scaled eyes
-  const eyes = currentChar.value.eyes(state, isBlinking);
-  const eyeShiftX = Math.round(eyeX);
-  const eyeShiftY = Math.round(eyeY * 0.5);
-  for (const [ex, ey, ec] of eyes) {
-    const off = { ox: Math.sin(basePhase + ey * 0.12) * 0.15 * ((PH - ey) / PH), oy: 0 };
-    ctx.fillStyle = ec;
-    ctx.fillRect(Math.round(ex * sx + off.ox * sx + eyeShiftX * sx), Math.round(ey * sy + off.oy * sy + bounceY * sy + eyeShiftY * sy), Math.ceil(sx), Math.ceil(sy));
-  }
-
-  // Scaled face
-  const face = currentChar.value.face(state, curAction);
-  for (const [fx, fy, fc] of face) {
-    const off = { ox: Math.sin(basePhase + fy * 0.12) * 0.15 * ((PH - fy) / PH), oy: 0 };
-    ctx.fillStyle = fc;
-    ctx.fillRect(Math.round(fx * sx + off.ox * sx), Math.round(fy * sy + off.oy * sy + bounceY * sy), Math.ceil(sx), Math.ceil(sy));
-  }
-
-  ctx.restore();
-
-  // Particles overlay (scaled)
-  for (const p of particleSystem.getAll()) {
-    const alpha = Math.max(0, 1 - p.life / p.maxLife);
-    ctx.fillStyle = p.color;
-    ctx.globalAlpha = alpha * 0.7;
-    ctx.fillRect(Math.round(p.x * sx), Math.round(p.y * sy), Math.ceil(sx), Math.ceil(sy));
-  }
-  ctx.globalAlpha = 1;
-}
-
-// ─── Character Switching ──────────────────────────────
-
-function cycleCharacter() {
-  // Cycle through both pixel characters AND SVG themes
-  const themes = themeLoader.list();
-  const pixelIds = allCharacters.value.map(c => c.id);
-  const svgThemes = themes.filter(t => t.renderer === 'svg');
-  const allIds = [...pixelIds, ...svgThemes.map(t => t.id)];
-
-  const currentId = petStore.themeId || pixelIds[0];
-  const currentIdx = allIds.indexOf(currentId);
-  const nextIdx = (currentIdx + 1) % allIds.length;
-  const nextId = allIds[nextIdx];
-
-  // Check if it's a pixel character or SVG theme
-  const pixelIdx = pixelIds.indexOf(nextId);
-  if (pixelIdx >= 0) {
-    // Switch to pixel character
-    if (renderMode.value === 'svg' && svgRenderer) {
-      svgRenderer.destroy();
-      svgRenderer = null;
-    }
-    renderMode.value = 'css-pixel';
-    charIndex.value = pixelIdx;
-    petStore.themeId = nextId;
-    showBubble(`${allCharacters.value[pixelIdx].emoji} ${allCharacters.value[pixelIdx].name}`);
-
-    nextTick(() => {
-      if (canvasRef.value && !ctx) {
-        ctx = canvasRef.value.getContext('2d')!;
-        ctx.imageSmoothingEnabled = false;
-        canvasRef.value.width = PW;
-        canvasRef.value.height = PH;
-      }
-    });
-  } else {
-    // Switch to SVG theme
-    const theme = themeLoader.get(nextId);
-    if (!theme) return;
-    renderMode.value = 'svg';
-    petStore.themeId = nextId;
-    showBubble(`🎨 ${theme.displayName}`);
-
-    nextTick(() => {
-      if (svgContainerRef.value) {
-        if (svgRenderer) svgRenderer.destroy();
-        svgRenderer = new SVGRenderer();
-        const stateFiles = buildStateFiles(theme.id, theme.states as Record<string, { files: string[] }>);
-        const svgConfig = { ...(theme.rendererConfig as any), stateFiles };
-        svgRenderer.init(svgContainerRef.value, { scale: displayScale.value, opacity: petStore.opacity }, svgConfig);
-        svgRenderer.setState(petStore.currentState, { duration: 0 });
-      }
-    });
-  }
-}
-
-// ─── Custom Pet Import ────────────────────────────────
-
-const fileInput = ref<HTMLInputElement | null>(null);
-function triggerImport() { fileInput.value?.click(); }
-
-function onFileImport(e: Event) {
-  const input = e.target as HTMLInputElement;
-  const file = input.files?.[0];
-  if (!file) return;
-
-  // JSON theme import
-  if (file.name.endsWith('.json')) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const data = JSON.parse(reader.result as string);
-        const result = themeLoader.loadFromData(data);
-        if (result.theme) {
-          petStore.themeId = result.theme.id;
-          if (result.theme.renderer === 'svg') {
-            renderMode.value = 'svg';
-          }
-          showBubble(`🎨 Imported: ${result.theme.displayName}`);
-        } else {
-          showBubble(`❌ Invalid theme: ${result.errors[0]?.message || 'unknown error'}`);
-        }
-      } catch (err) {
-        showBubble('❌ Failed to parse theme JSON');
-      }
-    };
-    reader.readAsText(file);
-    input.value = '';
-    return;
-  }
-
-  // Image import (existing pixel grid conversion)
-  const reader = new FileReader();
-  reader.onload = () => {
-    const img = new Image();
-    img.onload = () => {
-      const customGrid: (string | null)[][] = [];
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = PW; tempCanvas.height = PH;
-      const tempCtx = tempCanvas.getContext('2d')!;
-      tempCtx.imageSmoothingEnabled = false;
-      tempCtx.drawImage(img, 0, 0, PW, PH);
-      const imageData = tempCtx.getImageData(0, 0, PW, PH);
-      for (let y = 0; y < PH; y++) {
-        const row: (string | null)[] = [];
-        for (let x = 0; x < PW; x++) {
-          const i = (y * PW + x) * 4;
-          const r = imageData.data[i], g = imageData.data[i + 1], b = imageData.data[i + 2], a = imageData.data[i + 3];
-          if (a < 128) { row.push(null); continue; }
-          row.push(`rgb(${r},${g},${b})`);
-        }
-        customGrid.push(row);
-      }
-      const customChar: PetCharacter = {
-        id: 'custom-' + Date.now(),
-        name: file.name.replace(/\.[^.]+$/, ''),
-        emoji: '🎨',
-        sprite: () => customGrid,
-        eyes: () => [] as [number, number, string][],
-        face: () => [] as [number, number, string][],
-      };
-      customCharacters.value.push(customChar);
-      charIndex.value = allCharacters.value.length - 1;
-      petStore.themeId = customChar.id;
-      showBubble(`🎨 ${customChar.name}`);
-    };
-    img.src = reader.result as string;
-  };
-  reader.readAsDataURL(file);
-  input.value = '';
-}
-
-// ─── Bubble (delegated to useBubble composable) ──────
+// ── Composables ──────────────────────────────────────
 const showBubble = bubble.show;
 const showPermissionBubble = bubble.showPermission;
 
+const { currentSize, displayScale, canvasDisplayWidth, canvasDisplayHeight, cycleSize } = usePetSize(
+  toRef(petStore, 'scale'),
+  showBubble,
+);
+
+const charMgr = useCharacterManager({
+  themeLoader,
+  petStore,
+  displayScale,
+  showBubble,
+  renderMode,
+  canvasRef,
+  svgContainerRef,
+  renderers,
+});
+const { currentChar, allCharacters, charIndex, cycleCharacter, fileInput, triggerImport, onFileImport } = charMgr;
+
+const engine = usePetEngine({
+  petStore,
+  settingsStore,
+  particleSystem,
+  currentChar,
+  canvasRef,
+  getCtx: () => renderers.ctx,
+  showBubble,
+  t,
+});
+
+const { bounceY, petRotation, squishX, squishY } = engine;
+
+const drag = usePetDrag({
+  getEp,
+  onMouseMove: (x: number, y: number) => {
+    engine.shared.mouseX = x;
+    engine.shared.mouseY = y;
+    engine.shared.lastMouseTime = Date.now();
+    engine.updateEyeTarget();
+  },
+  setIsDrag: (v: boolean) => { engine.shared.isDrag = v; },
+});
+const { onDragStart, onDragMove, onDragEnd } = drag;
+
+// ── Bubble Permission ────────────────────────────────
 function dismissPermission(action: string) {
   const result = bubble.dismissPermission(action);
   if (result) {
@@ -562,57 +113,13 @@ function dismissPermission(action: string) {
   }
 }
 
-// ─── Settings Navigation ────────────────────────────────
-
+// ── Settings Navigation ──────────────────────────────
 function openSettings() {
   getEp()?.openSettings();
 }
 
-// ─── Direct Drag (smooth manual window move) ─────────
-let dragActive = false;
-let dragDidMove = false;
-const DRAG_THRESHOLD = 3;
-let dragStartX = 0;
-let dragStartY = 0;
-
-function onDragStart(e: PointerEvent) {
-  dragStartX = e.screenX;
-  dragStartY = e.screenY;
-  dragDidMove = false;
-  dragActive = true;
-  getEp()?.dragLock(e.screenX, e.screenY);
-  (e.currentTarget as HTMLElement)?.setPointerCapture(e.pointerId);
-}
-
-function onDragMove(e: PointerEvent) {
-  if (!dragActive) {
-    mouseX = e.screenX;
-    mouseY = e.screenY;
-    lastMouseTime = Date.now();
-    updateEyeTarget();
-    return;
-  }
-  const dx = e.screenX - dragStartX;
-  const dy = e.screenY - dragStartY;
-  if (!dragDidMove && Math.abs(dx) + Math.abs(dy) < DRAG_THRESHOLD) return;
-  dragDidMove = true;
-  isDrag = true;
-  getEp()?.dragMove(e.screenX, e.screenY);
-}
-
-function onDragEnd(e: PointerEvent) {
-  if (!dragActive) return;
-  dragActive = false;
-  isDrag = false;
-  getEp()?.dragEnd();
-  try { (e.currentTarget as HTMLElement)?.releasePointerCapture(e.pointerId); } catch {}
-}
-
-// ─── Scale Reactivity ─────────────────────────────────
-
+// ── Scale Reactivity ─────────────────────────────────
 function applyScaleOpacity() {
-  // Width/height are set by Vue's :style binding on the container.
-  // Only opacity is set here.
   if (!canvasRef.value) return;
   canvasRef.value.style.opacity = `${petStore.opacity}`;
 }
@@ -624,9 +131,7 @@ watch(() => petStore.themeId, (id) => {
   if (idx >= 0) charIndex.value = idx;
 });
 
-// ─── Lifecycle ────────────────────────────────────────
-
-// Engine references for cleanup
+// ── Lifecycle ────────────────────────────────────────
 let coreBus: EventBus | null = null;
 let stateManager: StateManager | null = null;
 let emotionEngine: EmotionEngine | null = null;
@@ -634,7 +139,6 @@ let bubbleManager: BubbleManager | null = null;
 const demoTimers: ReturnType<typeof setTimeout>[] = [];
 
 onMounted(async () => {
-  // Determine render mode from active theme
   const activeTheme = themeLoader.getActive() || themeLoader.get('svg-cat');
   if (activeTheme?.renderer === 'svg') {
     renderMode.value = 'svg';
@@ -647,56 +151,44 @@ onMounted(async () => {
   await nextTick();
 
   if (renderMode.value === 'svg' && svgContainerRef.value && activeTheme) {
-    // SVG render path
-    svgRenderer = new SVGRenderer();
+    renderers.svgRenderer = new SVGRenderer();
     const stateFiles = buildStateFiles(activeTheme.id, activeTheme.states as Record<string, { files: string[] }>);
-    const svgConfig = {
-      ...(activeTheme.rendererConfig as any),
-      stateFiles,
-    };
-    await svgRenderer.init(svgContainerRef.value, { scale: displayScale.value, opacity: petStore.opacity }, svgConfig);
-    svgRenderer.setState('idle', { duration: 0 });
+    const svgConfig = { ...(activeTheme.rendererConfig as any), stateFiles };
+    await renderers.svgRenderer.init(svgContainerRef.value, { scale: displayScale.value, opacity: petStore.opacity }, svgConfig);
+    renderers.svgRenderer.setState('idle', { duration: 0 });
   } else if (renderMode.value === 'css-theme' && canvasRef.value && activeTheme) {
-    // CSS pixel theme render path
-    cssPixelRenderer = new CSSPixelRenderer();
-    await cssPixelRenderer.init(
+    renderers.cssPixelRenderer = new CSSPixelRenderer();
+    await renderers.cssPixelRenderer.init(
       canvasWrapRef.value!,
       { scale: displayScale.value, opacity: petStore.opacity },
       activeTheme.rendererConfig as CSSPixelConfig,
       canvasRef.value,
     );
-    cssPixelRenderer.setState('idle', { duration: 0 });
+    renderers.cssPixelRenderer.setState('idle', { duration: 0 });
   } else if (renderMode.value === 'sprite' && canvasRef.value && activeTheme) {
-    // Sprite theme render path
-    spriteRenderer = new SpriteRenderer();
-    await spriteRenderer.init(
+    renderers.spriteRenderer = new SpriteRenderer();
+    await renderers.spriteRenderer.init(
       canvasWrapRef.value!,
       { scale: displayScale.value, opacity: petStore.opacity },
       activeTheme.rendererConfig as SpriteConfig,
       canvasRef.value,
     );
-    spriteRenderer.setState('idle', { duration: 0 });
+    renderers.spriteRenderer.setState('idle', { duration: 0 });
   } else if (canvasRef.value) {
-    // Canvas render path (existing)
-    ctx = canvasRef.value.getContext('2d')!;
-    ctx.imageSmoothingEnabled = false;
+    renderers.ctx = canvasRef.value.getContext('2d')!;
+    renderers.ctx.imageSmoothingEnabled = false;
     canvasRef.value.width = PW;
     canvasRef.value.height = PH;
   }
 
   await loadLocale();
 
-  // Start adaptive tick
-  tick();
-  tickInterval = setInterval(tick, currentTickMs);
+  engine.startTick();
 
-  // Note: render window is click-through, so DOM mousemove never fires here.
-  // Mouse tracking comes from hit window via IPC 'mouse-move' event (registered below).
-
-  // Listen for IPC from hit window
+  // IPC event handlers
   const ep = getEp();
   if (ep?.on) {
-    ep.on('pet:clicked', onHitClick);
+    ep.on('pet:clicked', engine.onHitClick);
     ep.on('pet:pause-toggled', (p: unknown) => { petStore.isPaused = p as boolean; });
     ep.on('pet:mini-mode', (mini: unknown) => { isMiniMode.value = mini as boolean; });
     ep.on('pet:size-changed', (size: unknown) => {
@@ -708,31 +200,27 @@ onMounted(async () => {
     ep.on('pet:event', (ev: unknown) => {
       const e = ev as { type?: string; state?: PetState; message?: string; source?: string; permissionId?: string; permissionTool?: string };
       const source = e.source || 'hook';
-
       if (e.type === 'permission' && e.permissionId) {
         showPermissionBubble(e.permissionId, e.permissionTool || 'tool', e.message || `Allow ${e.permissionTool || 'tool'}?`);
-        updateSession(source, 'waiting', source);
+        engine.updateSession(source, 'waiting', source);
         return;
       }
-
-      updateSession(source, e.state || 'idle', source);
-      playStateSound(e.state || 'idle');
+      engine.updateSession(source, e.state || 'idle', source);
+      engine.playStateSound(e.state || 'idle');
     });
-    // Eye tracking: hit window forwards mouse position via main process
     ep.on('mouse-move', (x: unknown, y: unknown) => {
-      mouseX = x as number;
-      mouseY = y as number;
-      lastMouseTime = Date.now();
-      updateEyeTarget();
+      engine.shared.mouseX = x as number;
+      engine.shared.mouseY = y as number;
+      engine.shared.lastMouseTime = Date.now();
+      engine.updateEyeTarget();
     });
-    // Drag state sync from main process
-    ep.on('drag:started', () => { isDrag = true; });
-    ep.on('drag:ended', () => { isDrag = false; });
+    ep.on('drag:started', () => { engine.shared.isDrag = true; });
+    ep.on('drag:ended', () => { engine.shared.isDrag = false; });
     ep.on('throw-pet', (vx?: unknown, vy?: unknown) => {
-      throwVx = Number(vx) || 0;
-      throwVy = Number(vy) || 0;
-      petRotV = throwVx * 0.01;
-      addAnnoyance(2);
+      engine.shared.throwVx = Number(vx) || 0;
+      engine.shared.throwVy = Number(vy) || 0;
+      engine.shared.petRotV = engine.shared.throwVx * 0.01;
+      engine.addAnnoyance(2);
     });
     ep.on('shortcut', (action: unknown) => {
       if (bubbleKind.value === 'permission' && bubblePermissionId.value) {
@@ -743,8 +231,6 @@ onMounted(async () => {
   }
 
   coreBus = new EventBus();
-  // Read live values from the settings store so the Behavior tab actually
-  // controls the state machine. Watcher below propagates later changes.
   stateManager = new StateManager(coreBus, {
     sleepSequence: settingsStore.sleepSequence,
     idleTimeoutMs: settingsStore.idleTimeoutMs,
@@ -753,7 +239,6 @@ onMounted(async () => {
   emotionEngine = new EmotionEngine(coreBus);
   bubbleManager = new BubbleManager(coreBus);
 
-  // React to behavior-tab changes without rebuilding the manager
   watch(
     () => [settingsStore.sleepSequence, settingsStore.idleTimeoutMs] as const,
     ([seq, idle]) => {
@@ -762,21 +247,19 @@ onMounted(async () => {
   );
 
   stateManager.onChange((s: PetState) => {
-    updateSession('state-manager', s);
-    stateFlash = 1;
-    playStateSound(s);
-    if (svgRenderer) svgRenderer.setState(s, { duration: 300 });
-    if (cssPixelRenderer) cssPixelRenderer.setState(s, { duration: 300 });
-    if (spriteRenderer) spriteRenderer.setState(s, { duration: 300 });
+    engine.updateSession('state-manager', s);
+    engine.onStateFlash();
+    engine.playStateSound(s);
+    if (renderers.svgRenderer) renderers.svgRenderer.setState(s, { duration: 300 });
+    if (renderers.cssPixelRenderer) renderers.cssPixelRenderer.setState(s, { duration: 300 });
+    if (renderers.spriteRenderer) renderers.spriteRenderer.setState(s, { duration: 300 });
   });
 
   bubbleManager.onBubble((b) => showBubble(b.text));
   emotionEngine.start();
 
-  // Start adapters via IPC (they run in the main process)
   try {
     const result = await startEnabledAdapters(coreBus, settingsStore.enabledAdapters);
-    // adapters started
     if (result.failed.length > 0) {
       console.warn('[UniPet] Some adapters failed to start:', result.failed);
     }
@@ -784,35 +267,21 @@ onMounted(async () => {
     console.warn('[UniPet] Adapter start failed:', err);
   }
 
-  // Demo sequence (tracked so we can cancel on unmount)
-  demoTimers.push(setTimeout(() => updateSession('demo', 'thinking'), 1500));
+  demoTimers.push(setTimeout(() => engine.updateSession('demo', 'thinking'), 1500));
   demoTimers.push(setTimeout(() => showBubble(t('pet.ready')), 2500));
-  demoTimers.push(setTimeout(() => updateSession('demo', 'happy'), 5000));
-  demoTimers.push(setTimeout(() => updateSession('demo', 'idle'), 7000));
+  demoTimers.push(setTimeout(() => engine.updateSession('demo', 'happy'), 5000));
+  demoTimers.push(setTimeout(() => engine.updateSession('demo', 'idle'), 7000));
 });
 
 onUnmounted(() => {
-  if (tickInterval) {
-    clearInterval(tickInterval);
-    tickInterval = null;
-  }
-  if (svgRenderer) {
-    svgRenderer.destroy();
-    svgRenderer = null;
-  }
-  if (cssPixelRenderer) {
-    cssPixelRenderer.destroy();
-    cssPixelRenderer = null;
-  }
-  if (spriteRenderer) {
-    spriteRenderer.destroy();
-    spriteRenderer = null;
-  }
+  engine.stopTick();
+  if (renderers.svgRenderer) { renderers.svgRenderer.destroy(); renderers.svgRenderer = null; }
+  if (renderers.cssPixelRenderer) { renderers.cssPixelRenderer.destroy(); renderers.cssPixelRenderer = null; }
+  if (renderers.spriteRenderer) { renderers.spriteRenderer.destroy(); renderers.spriteRenderer = null; }
   bubble.destroy();
   emotionEngine?.stop();
   stateManager?.reset();
   stopAllAdapters().catch(() => { /* ignore */ });
-  soundPlayer.destroy();
   coreBus?.clear?.();
   for (const tm of demoTimers) clearTimeout(tm);
   demoTimers.length = 0;
@@ -820,7 +289,6 @@ onUnmounted(() => {
   stateManager = null;
   emotionEngine = null;
   bubbleManager = null;
-  // adapters stopped
 });
 </script>
 
