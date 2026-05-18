@@ -1,6 +1,6 @@
 {
   "name": "@unipet/adapters",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Agent adapters for Claude Code, Codex, Cursor, Gemini, Copilot, and more",
   "type": "module",
   "license": "MIT",

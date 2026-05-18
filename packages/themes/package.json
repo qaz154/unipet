@@ -1,6 +1,6 @@
 {
   "name": "@unipet/themes",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Theme schema, loader, validation, and SVG sanitizer for UniPet",
   "type": "module",
   "license": "MIT",
