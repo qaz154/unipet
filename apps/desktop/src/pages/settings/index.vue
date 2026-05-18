@@ -67,6 +67,7 @@ function selectPet(id: string) { petStore.themeId = id; }
 const { previewCanvas, previewChar, resetTimestamp } = usePetPreview(
   () => currentPetId.value,
 );
+void previewCanvas; // template ref — used in template via ref="previewCanvas"
 
 watch(resolvedMode, () => { resetTimestamp(); });
 </script>

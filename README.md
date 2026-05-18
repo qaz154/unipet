@@ -6,7 +6,7 @@ English · [简体中文](README.zh-CN.md)
 
 [![CI](https://github.com/qaz154/unipet/actions/workflows/ci.yml/badge.svg)](https://github.com/qaz154/unipet/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Electron](https://img.shields.io/badge/Electron-41-47848F?logo=electron)](https://www.electronjs.org/)
+[![Electron](https://img.shields.io/badge/Electron-42-47848F?logo=electron)](https://www.electronjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6?logo=typescript)](https://www.typescriptlang.org/)
 
 UniPet sits on your desktop and reacts in real-time to what your AI agents are doing — thinking, coding, testing, waiting for approval, celebrating success, or panicking on errors.
