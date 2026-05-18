@@ -7,13 +7,14 @@
 
 import type { AgentAdapter, AdapterContext, AdapterConfig } from './adapter.js';
 import type { EventBus } from '@unipet/core';
-import { DEFAULT_HTTP_PORT } from '@unipet/core';
+import { DEFAULT_HTTP_PORT, createLogger } from '@unipet/core';
 
 export class AdapterRegistry {
   private readonly adapters = new Map<string, AgentAdapter>();
   private readonly activeAdapters = new Map<string, AgentAdapter>();
   private bus!: EventBus;
   private config!: AdapterConfig;
+  private readonly log = createLogger('info', 'unipet').child('registry');
 
   /** Register an adapter */
   register(adapter: AgentAdapter): void {
@@ -95,7 +96,7 @@ export class AdapterRegistry {
       try {
         await adapter.stop();
       } catch (err) {
-        console.error(`[registry] Error stopping adapter '${id}':`, err);
+        this.log.error(`Error stopping adapter '${id}':`, err);
       }
     }
     this.activeAdapters.clear();
@@ -145,12 +146,10 @@ export class AdapterRegistry {
       },
       getConfig: () => this.config ?? { enabled: true, httpPort: DEFAULT_HTTP_PORT },
       log: {
-        info: (msg, ...args) => console.log(`[unipet] ${msg}`, ...args),
-        warn: (msg, ...args) => console.warn(`[unipet] ${msg}`, ...args),
-        error: (msg, ...args) => console.error(`[unipet] ${msg}`, ...args),
-        debug: (msg, ...args) => {
-          if (process.env['UNIPET_DEBUG']) console.debug(`[unipet] ${msg}`, ...args);
-        },
+        info: (msg, ...args) => this.log.info(msg, ...args),
+        warn: (msg, ...args) => this.log.warn(msg, ...args),
+        error: (msg, ...args) => this.log.error(msg, ...args),
+        debug: (msg, ...args) => this.log.debug(msg, ...args),
       },
       bus: this.bus,
     };

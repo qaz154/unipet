@@ -11,7 +11,6 @@ import {
   type ValidationError,
   validateTheme,
   DEFAULT_TIMINGS,
-  REQUIRED_STATES,
 } from './schema.js';
 import { mergeVariant } from './variants.js';
 
@@ -52,13 +51,6 @@ export class ThemeLoader {
       timings: { ...DEFAULT_TIMINGS, ...raw.timings },
       states: { ...raw.states },
     };
-
-    const missingStates = REQUIRED_STATES.filter(
-      (s) => !theme.states[s],
-    );
-    if (missingStates.length > 0) {
-      console.warn(`[unipet/themes] Theme "${theme.id}" missing states: ${missingStates.join(', ')}`);
-    }
 
     this.themes.set(theme.id, theme);
     return { theme, errors: [] };

@@ -114,7 +114,7 @@ export function useCharacterManager(opts: CharacterManagerOpts): UseCharacterMan
           if (renderers.svgRenderer) renderers.svgRenderer.destroy();
           renderers.svgRenderer = new SVGRenderer();
           const stateFiles = buildStateFiles(theme.id, theme.states as Record<string, { files: string[] }>);
-          const svgConfig = { ...(theme.rendererConfig as any), stateFiles };
+          const svgConfig = { ...(theme.rendererConfig as unknown as Record<string, unknown>), stateFiles };
           renderers.svgRenderer.init(svgContainerRef.value, { scale: displayScale.value, opacity: petStore.opacity }, svgConfig);
           renderers.svgRenderer.setState(petStore.currentState, { duration: 0 });
         }
