@@ -18,6 +18,11 @@ import { useSettingsSearch, type TabId } from '../../composables/useSettingsSear
 import { useAgents } from '../../composables/useAgents';
 import { usePetPreview } from '../../composables/usePetPreview';
 import { PET_CHARACTERS, PW, PH } from '../../lib/pet-characters';
+import SettingsAgentList from './components/SettingsAgentList.vue';
+import SettingsPreview from './components/SettingsPreview.vue';
+import SettingsSidebar from './components/SettingsSidebar.vue';
+
+const APP_VERSION = '0.1.5';
 
 const petStore = usePetStore();
 const settingsStore = useSettingsStore();
@@ -67,7 +72,6 @@ function selectPet(id: string) { petStore.themeId = id; }
 const { previewCanvas, previewChar, resetTimestamp } = usePetPreview(
   () => currentPetId.value,
 );
-void previewCanvas; // template ref — used in template via ref="previewCanvas"
 
 watch(resolvedMode, () => { resetTimestamp(); });
 </script>
@@ -133,27 +137,12 @@ watch(resolvedMode, () => { resetTimestamp(); });
 
     <div class="body">
       <!-- ═══ Sidebar ═══ -->
-      <nav class="sidebar">
-        <div class="sidebar-brand">
-          <span class="sidebar-logo">🐾</span>
-          <span class="sidebar-title">UniPet</span>
-        </div>
-        <div class="sidebar-tabs">
-          <button
-            v-for="tab in tabs" :key="tab.id"
-            v-show="isTabVisible(tab.id)"
-            :class="['sidebar-tab', { active: activeTab === tab.id }]"
-            @click="activeTab = tab.id"
-            :title="tab.label"
-          >
-            <span class="tab-icon">{{ tab.icon }}</span>
-            <span class="tab-label">{{ tab.label }}</span>
-          </button>
-        </div>
-        <div class="sidebar-footer">
-          <span class="sidebar-version">v0.1.0</span>
-        </div>
-      </nav>
+      <SettingsSidebar
+        v-model:active-tab="activeTab"
+        :tabs="tabs"
+        :is-tab-visible="isTabVisible"
+        :version="APP_VERSION"
+      />
 
       <!-- ═══ Main content ═══ -->
       <main class="content">
@@ -343,32 +332,18 @@ watch(resolvedMode, () => { resetTimestamp(); });
           </div>
         </section>
 
-        <!-- ─── Agents ─── -->
-        <section v-if="activeTab === 'agents' || anyMatchAcrossTabs" v-show="isTabVisible('agents')" class="tab-content">
-          <h1 v-if="activeTab === 'agents'">{{ t('settings.agents') }}</h1>
-          <div class="card">
-            <template v-for="agent in filteredAgents" :key="agent.id">
-              <div class="row agent-row">
-                <div class="row-text" @click="expandedAgent = expandedAgent === agent.id ? null : agent.id">
-                  <div class="agent-header">
-                    <span class="agent-name">{{ agent.name }}</span>
-                    <span :class="['agent-badge', agent.badge]">{{ agent.badge }}</span>
-                    <span v-if="agent.hasPerm" class="agent-badge perm">perm</span>
-                  </div>
-                  <span class="row-desc">{{ agent.desc }}</span>
-                </div>
-                <div class="row-control">
-                  <button :class="['switch', { on: isAgentEnabled(agent.id), busy: agentInstalling === agent.id }]" @click="toggleAgent(agent.id)"><span class="switch-knob" /></button>
-                </div>
-              </div>
-              <div v-if="expandedAgent === agent.id" class="agent-detail">
-                <div class="detail-row"><span class="detail-label">Status</span><span :class="['detail-value', isAgentEnabled(agent.id) ? 'on' : 'off']">{{ agentStatus[agent.id] || (isAgentEnabled(agent.id) ? 'Enabled' : 'Disabled') }}</span></div>
-                <div class="detail-row"><span class="detail-label">Type</span><span class="detail-value">{{ agent.badge }}</span></div>
-              </div>
-            </template>
-            <div v-if="filteredAgents.length === 0" class="empty-state">No agents match "{{ search }}"</div>
-          </div>
-        </section>
+        <SettingsAgentList
+          v-if="activeTab === 'agents' || anyMatchAcrossTabs"
+          v-show="isTabVisible('agents')"
+          v-model:expanded-agent="expandedAgent"
+          :title="t('settings.agents')"
+          :agents="filteredAgents"
+          :agent-installing="agentInstalling"
+          :agent-status="agentStatus"
+          :search="search"
+          :is-agent-enabled="isAgentEnabled"
+          @toggle-agent="toggleAgent"
+        />
 
         <!-- ─── About ─── -->
         <section v-if="activeTab === 'about'" v-show="isTabVisible('about')" class="tab-content">
@@ -376,507 +351,23 @@ watch(resolvedMode, () => { resetTimestamp(); });
           <div class="card about-card">
             <div class="about-logo">🐾</div>
             <div class="about-name">UniPet</div>
-            <div class="about-version">Version 0.1.0</div>
+            <div class="about-version">Version {{ APP_VERSION }}</div>
             <div class="about-desc">A unified desktop pet framework for AI coding agents.</div>
           </div>
         </section>
       </main>
 
       <!-- ═══ Live preview ═══ -->
-      <aside class="preview">
-        <div class="preview-stage" :style="{ opacity: petStore.opacity }">
-          <canvas
-            ref="previewCanvas"
-            :width="PW" :height="PH"
-            :style="{
-              width: `${PW * 4 * Math.min(petStore.scale, 1.6)}px`,
-              height: `${PH * 4 * Math.min(petStore.scale, 1.6)}px`,
-            }"
-          />
-        </div>
-        <div class="preview-meta">
-          <div class="preview-meta-label">Live preview</div>
-          <div class="preview-meta-name">{{ previewChar.emoji }} {{ previewChar.name }}</div>
-          <div class="preview-meta-stats">
-            <span>{{ Math.round(petStore.scale * 100) }}%</span>
-            <span class="preview-dot">·</span>
-            <span>{{ Math.round(petStore.opacity * 100) }}% opacity</span>
-          </div>
-        </div>
-      </aside>
+      <SettingsPreview
+        v-model:preview-canvas="previewCanvas"
+        :opacity="petStore.opacity"
+        :scale="petStore.scale"
+        :preview-char="previewChar"
+        :canvas-width="PW"
+        :canvas-height="PH"
+      />
     </div>
   </div>
 </template>
 
-<style scoped>
-/* ─── Color tokens ──────────────────────────────────────── */
-.settings-app[data-mode='dark'] {
-  --bg: #1c1c1f;
-  --bg-elevated: rgba(36,36,40,0.86);
-  --titlebar-bg: rgba(28,28,31,0.78);
-  --sidebar-bg: rgba(20,20,23,0.72);
-  --card-bg: rgba(255,255,255,0.035);
-  --card-border: rgba(255,255,255,0.07);
-  --hairline: rgba(255,255,255,0.05);
-  --text-primary: #f4f4f5;
-  --text-secondary: #a8a8b0;
-  --text-tertiary: #6c6c75;
-  --input-bg: rgba(255,255,255,0.04);
-  --input-border: rgba(255,255,255,0.08);
-  --switch-off: #3f3f46;
-  --hover-bg: rgba(255,255,255,0.045);
-  --accent: #ff8a65;
-  --accent-soft: rgba(255,138,101,0.14);
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.32);
-  --shadow-md: 0 4px 16px rgba(0,0,0,0.28);
-  color-scheme: dark;
-}
-.settings-app[data-mode='light'] {
-  --bg: #f5f5f7;
-  --bg-elevated: rgba(255,255,255,0.88);
-  --titlebar-bg: rgba(245,245,247,0.84);
-  --sidebar-bg: rgba(247,247,250,0.74);
-  --card-bg: rgba(255,255,255,0.94);
-  --card-border: rgba(0,0,0,0.06);
-  --hairline: rgba(0,0,0,0.06);
-  --text-primary: #1d1d1f;
-  --text-secondary: #555562;
-  --text-tertiary: #86868b;
-  --input-bg: #ffffff;
-  --input-border: rgba(0,0,0,0.08);
-  --switch-off: #d4d4d8;
-  --hover-bg: rgba(0,0,0,0.04);
-  --accent: #d97757;
-  --accent-soft: rgba(217,119,87,0.14);
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.06);
-  --shadow-md: 0 6px 22px rgba(0,0,0,0.08);
-  color-scheme: light;
-}
-
-/* ─── Frame ─────────────────────────────────────────────── */
-.settings-app {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  background: var(--bg);
-  color: var(--text-primary);
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable",
-               "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-  font-size: 13px;
-  font-feature-settings: "ss01", "cv01";
-  -webkit-font-smoothing: antialiased;
-  user-select: none;
-  overflow: hidden;
-}
-
-/* ─── Titlebar ──────────────────────────────────────────── */
-.titlebar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  background: var(--titlebar-bg);
-  backdrop-filter: saturate(140%) blur(20px);
-  -webkit-backdrop-filter: saturate(140%) blur(20px);
-  border-bottom: 1px solid var(--hairline);
-  -webkit-app-region: drag;
-}
-.titlebar-collapse,
-.titlebar-mode,
-.titlebar-search,
-.titlebar-window-controls { -webkit-app-region: no-drag; }
-
-.titlebar-window-controls {
-  display: flex; gap: 4px;
-}
-.win-ctrl {
-  width: 14px; height: 14px;
-  border: none; border-radius: 50%;
-  cursor: pointer; padding: 0;
-  display: inline-flex; align-items: center; justify-content: center;
-  transition: background 0.12s;
-}
-.win-ctrl.close-btn { background: #ff5f57; color: rgba(0,0,0,0.5); }
-.win-ctrl.min-btn { background: #febc2e; color: rgba(0,0,0,0.5); }
-.win-ctrl.max-btn { background: #28c840; color: rgba(0,0,0,0.5); }
-.win-ctrl:hover { filter: brightness(1.15); }
-.win-ctrl svg { display: block; }
-
-.titlebar-collapse {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 26px; height: 26px;
-  border: none; background: transparent;
-  border-radius: 6px; cursor: pointer;
-  color: var(--text-secondary);
-  transition: background 0.15s, color 0.15s;
-}
-.titlebar-collapse:hover { background: var(--hover-bg); color: var(--text-primary); }
-
-.titlebar-search {
-  flex: 1;
-  display: flex; align-items: center; gap: 6px;
-  max-width: 480px;
-  padding: 5px 10px;
-  background: var(--input-bg);
-  border: 1px solid var(--input-border);
-  border-radius: 8px;
-  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
-}
-.titlebar-search:focus-within {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
-}
-.search-icon { color: var(--text-tertiary); flex-shrink: 0; }
-.search-input {
-  flex: 1; min-width: 0;
-  background: transparent; border: none; outline: none;
-  color: var(--text-primary); font-size: 13px;
-  font-family: inherit;
-}
-.search-input::placeholder { color: var(--text-tertiary); }
-.search-input::-webkit-search-cancel-button { display: none; }
-.search-kbd {
-  font-size: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  padding: 1px 5px; border-radius: 3px;
-  background: var(--hover-bg);
-  color: var(--text-tertiary);
-}
-.search-clear {
-  width: 16px; height: 16px;
-  display: inline-flex; align-items: center; justify-content: center;
-  border: none; border-radius: 50%;
-  background: var(--switch-off); color: var(--text-primary);
-  cursor: pointer; font-size: 12px; line-height: 1;
-  padding: 0;
-}
-
-.titlebar-mode { display: flex; padding: 2px; background: var(--input-bg); border-radius: 8px; border: 1px solid var(--input-border); }
-.mode-pill {
-  width: 26px; height: 22px;
-  border: none; background: transparent;
-  border-radius: 6px; cursor: pointer;
-  color: var(--text-secondary);
-  font-size: 12px;
-  display: inline-flex; align-items: center; justify-content: center;
-  transition: background 0.15s, color 0.15s;
-}
-.mode-pill:hover { color: var(--text-primary); }
-.mode-pill.active {
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  box-shadow: var(--shadow-sm);
-}
-
-/* ─── Body layout ───────────────────────────────────────── */
-.body {
-  display: grid;
-  grid-template-columns: 220px 1fr 260px;
-  flex: 1;
-  min-height: 0;
-  transition: grid-template-columns 0.24s cubic-bezier(0.4,0,0.2,1);
-}
-.settings-app.collapsed .body { grid-template-columns: 64px 1fr 260px; }
-
-@media (max-width: 880px) {
-  .body { grid-template-columns: 220px 1fr; }
-  .settings-app.collapsed .body { grid-template-columns: 64px 1fr; }
-  .preview { display: none; }
-}
-
-/* ─── Sidebar ───────────────────────────────────────────── */
-.sidebar {
-  display: flex; flex-direction: column;
-  background: var(--sidebar-bg);
-  backdrop-filter: saturate(140%) blur(18px);
-  -webkit-backdrop-filter: saturate(140%) blur(18px);
-  border-right: 1px solid var(--hairline);
-  overflow: hidden;
-}
-.sidebar-brand {
-  display: flex; align-items: center; gap: 10px;
-  padding: 18px 16px 14px;
-  white-space: nowrap; overflow: hidden;
-}
-.sidebar-logo { font-size: 22px; }
-.sidebar-title { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
-.collapsed .sidebar-title { opacity: 0; }
-.collapsed .sidebar-brand { padding-left: 21px; }
-
-.sidebar-tabs { flex: 1; padding: 4px 8px; display: flex; flex-direction: column; gap: 2px; }
-.sidebar-tab {
-  display: flex; align-items: center; gap: 10px;
-  padding: 7px 10px;
-  border: none; background: transparent;
-  color: var(--text-secondary);
-  font-size: 13px; font-weight: 500;
-  border-radius: 7px; cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-  white-space: nowrap; overflow: hidden;
-}
-.sidebar-tab:hover { background: var(--hover-bg); color: var(--text-primary); }
-.sidebar-tab.active {
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-.tab-icon { font-size: 15px; width: 20px; flex-shrink: 0; text-align: center; }
-.tab-label { transition: opacity 0.15s; }
-.collapsed .tab-label { opacity: 0; pointer-events: none; }
-
-.sidebar-footer { padding: 14px 16px; border-top: 1px solid var(--hairline); white-space: nowrap; overflow: hidden; }
-.sidebar-version { font-size: 11px; color: var(--text-tertiary); }
-.collapsed .sidebar-version { opacity: 0; }
-
-/* ─── Content ───────────────────────────────────────────── */
-.content {
-  overflow-y: auto;
-  padding: 22px 28px 28px;
-  scroll-behavior: smooth;
-}
-.content::-webkit-scrollbar { width: 8px; }
-.content::-webkit-scrollbar-track { background: transparent; }
-.content::-webkit-scrollbar-thumb { background: var(--hairline); border-radius: 4px; border: 2px solid transparent; background-clip: padding-box; }
-.content::-webkit-scrollbar-thumb:hover { background: var(--input-border); background-clip: padding-box; }
-
-.tab-content > h1 {
-  font-size: 24px; font-weight: 700;
-  margin: 0 0 22px;
-  letter-spacing: -0.02em;
-}
-.section-title {
-  font-size: 11px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.06em;
-  color: var(--text-tertiary);
-  margin: 22px 0 8px;
-  padding: 0 4px;
-}
-
-/* ─── Cards (sections) ──────────────────────────────────── */
-.card {
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: var(--shadow-sm);
-}
-.row {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 13px 16px;
-  border-bottom: 1px solid var(--hairline);
-  transition: background 0.12s;
-}
-.row:last-child { border-bottom: none; }
-.row:hover { background: var(--hover-bg); }
-
-.row-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; cursor: default; }
-.row-label { font-size: 13px; font-weight: 500; color: var(--text-primary); }
-.row-desc { font-size: 11.5px; color: var(--text-tertiary); line-height: 1.4; }
-.row-control { flex-shrink: 0; margin-left: 16px; }
-
-/* ─── Switch ────────────────────────────────────────────── */
-.switch {
-  position: relative; width: 38px; height: 22px;
-  border: none; border-radius: 999px;
-  background: var(--switch-off); cursor: pointer;
-  transition: background 0.24s cubic-bezier(0.2,0.8,0.2,1);
-  padding: 0;
-}
-.switch.on { background: var(--accent); }
-.switch.busy { opacity: 0.6; pointer-events: none; }
-.switch-knob {
-  position: absolute; top: 2px; left: 2px;
-  width: 18px; height: 18px; border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
-  transition: transform 0.24s cubic-bezier(0.2,0.8,0.2,1);
-}
-.switch.on .switch-knob { transform: translateX(16px); }
-
-/* ─── Slider ────────────────────────────────────────────── */
-.slider-group { display: flex; align-items: center; gap: 10px; }
-.range-input {
-  -webkit-appearance: none;
-  width: 150px; height: 4px;
-  border-radius: 2px;
-  background: linear-gradient(to right, var(--accent) 0%, var(--accent) var(--fill), var(--switch-off) var(--fill), var(--switch-off) 100%);
-  outline: none; cursor: pointer;
-}
-.range-input::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 16px; height: 16px; border-radius: 50%;
-  background: #fff;
-  border: 0.5px solid rgba(0,0,0,0.18);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.22);
-  cursor: pointer;
-}
-.slider-value {
-  font-size: 12px; font-weight: 600;
-  color: var(--accent); min-width: 38px; text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-/* ─── Segmented control ─────────────────────────────────── */
-.segmented {
-  display: inline-flex; padding: 2px;
-  background: var(--input-bg);
-  border: 1px solid var(--input-border);
-  border-radius: 8px;
-}
-.segmented button {
-  padding: 4px 12px;
-  border: none; background: transparent;
-  color: var(--text-secondary);
-  font-size: 12px; font-weight: 500;
-  border-radius: 6px; cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-.segmented button:hover { color: var(--text-primary); }
-.segmented button.active {
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  box-shadow: var(--shadow-sm);
-}
-
-/* ─── Select ────────────────────────────────────────────── */
-.select-input {
-  background: var(--input-bg);
-  border: 1px solid var(--input-border);
-  border-radius: 6px;
-  color: var(--text-primary);
-  padding: 5px 24px 5px 10px;
-  font-size: 12px;
-  outline: none; cursor: pointer;
-  appearance: none;
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" stroke="%23999" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>');
-  background-repeat: no-repeat;
-  background-position: right 8px center;
-}
-.select-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-
-/* ─── Theme grid ────────────────────────────────────────── */
-.theme-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 12px;
-  margin-top: 4px;
-}
-.theme-card {
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  border-radius: 12px;
-  overflow: hidden;
-  cursor: pointer;
-  transition: border-color 0.18s, transform 0.18s, box-shadow 0.18s;
-  text-align: left;
-  padding: 0;
-  font: inherit;
-  color: inherit;
-}
-.theme-card:hover { transform: translateY(-1px); border-color: var(--accent); box-shadow: var(--shadow-md); }
-.theme-card.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
-.theme-preview {
-  aspect-ratio: 1;
-  background: linear-gradient(135deg, var(--hover-bg), var(--card-bg));
-  display: flex; align-items: center; justify-content: center;
-}
-.theme-emoji { font-size: 48px; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.12)); }
-.theme-info { padding: 10px 12px 6px; display: flex; flex-direction: column; gap: 2px; }
-.theme-name { font-size: 13px; font-weight: 600; }
-.theme-renderer { font-size: 11px; color: var(--text-tertiary); }
-.theme-active-badge {
-  display: block; padding: 0 12px 10px;
-  font-size: 11px; font-weight: 600; color: var(--accent);
-}
-
-/* ─── Agent rows ────────────────────────────────────────── */
-.agent-row .row-text { cursor: pointer; }
-.agent-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.agent-name { font-size: 13px; font-weight: 500; }
-.agent-badge {
-  font-size: 9.5px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.05em;
-  padding: 2px 6px; border-radius: 4px;
-  background: var(--hover-bg);
-  color: var(--text-tertiary);
-}
-.agent-badge.hooks { background: rgba(91,142,201,0.18); color: #5b8ec9; }
-.agent-badge.plugin { background: rgba(107,143,113,0.18); color: #6b8f71; }
-.agent-badge.protocol { background: rgba(212,115,138,0.18); color: #d4738a; }
-.agent-badge.perm { background: var(--accent-soft); color: var(--accent); }
-.agent-detail {
-  padding: 8px 16px 12px 36px;
-  background: var(--hover-bg);
-  border-bottom: 1px solid var(--hairline);
-}
-.detail-row { display: flex; justify-content: space-between; padding: 4px 0; }
-.detail-label { font-size: 11px; color: var(--text-tertiary); }
-.detail-value { font-size: 11px; font-weight: 500; }
-.detail-value.on { color: #6b8f71; }
-.detail-value.off { color: var(--text-tertiary); }
-
-.empty-state {
-  padding: 28px 16px;
-  text-align: center;
-  font-size: 12px;
-  color: var(--text-tertiary);
-}
-
-/* ─── About card ───────────────────────────────────────── */
-.about-card {
-  padding: 28px 24px;
-  display: flex; flex-direction: column;
-  align-items: center; gap: 6px;
-  text-align: center;
-}
-.about-logo { font-size: 56px; margin-bottom: 6px; }
-.about-name { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
-.about-version { font-size: 12px; color: var(--text-tertiary); }
-.about-desc { margin-top: 8px; font-size: 12px; color: var(--text-secondary); max-width: 320px; }
-
-/* ─── Preview panel ─────────────────────────────────────── */
-.preview {
-  background: var(--sidebar-bg);
-  backdrop-filter: saturate(140%) blur(18px);
-  -webkit-backdrop-filter: saturate(140%) blur(18px);
-  border-left: 1px solid var(--hairline);
-  padding: 24px 18px;
-  display: flex; flex-direction: column;
-  align-items: center;
-}
-.preview-stage {
-  width: 100%;
-  flex: 1;
-  display: flex; align-items: center; justify-content: center;
-  background: radial-gradient(120% 80% at 50% 110%, var(--accent-soft), transparent 70%);
-  border-radius: 16px;
-  margin-bottom: 14px;
-  transition: opacity 0.18s;
-}
-.preview-stage canvas {
-  image-rendering: pixelated;
-  image-rendering: -moz-crisp-edges;
-  image-rendering: crisp-edges;
-  filter: drop-shadow(0 6px 16px rgba(0,0,0,0.18));
-  transition: width 0.18s ease, height 0.18s ease;
-}
-.preview-meta {
-  width: 100%;
-  padding: 12px 14px;
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  border-radius: 10px;
-  text-align: center;
-}
-.preview-meta-label {
-  font-size: 10px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.06em;
-  color: var(--text-tertiary);
-  margin-bottom: 4px;
-}
-.preview-meta-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
-.preview-meta-stats {
-  margin-top: 4px;
-  font-size: 11px; color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
-}
-.preview-dot { margin: 0 6px; color: var(--text-tertiary); }
-</style>
+<style scoped src="./settings.css"></style>
