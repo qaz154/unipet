@@ -1,6 +1,6 @@
 {
   "name": "@unipet/renderers",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "CSS pixel art, SVG, and spritesheet renderers for UniPet",
   "type": "module",
   "license": "MIT",
