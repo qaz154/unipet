@@ -79,6 +79,7 @@ const charMgr = useCharacterManager({
   renderers,
 });
 const { currentChar, allCharacters, charIndex, cycleCharacter, fileInput, triggerImport, onFileImport } = charMgr;
+void fileInput; // template ref — used in template via ref="fileInput"
 
 const engine = usePetEngine({
   petStore,
