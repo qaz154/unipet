@@ -32,11 +32,26 @@ test.describe('UniPet boot', () => {
       await waitForDiscovery(discoveryPath);
       const { render } = await classifyWindows(app);
       await render!.waitForSelector('canvas.pet-canvas', { timeout: 10_000 });
-      const canvas = await render!.locator('canvas.pet-canvas').first();
+      const canvas = render!.locator('canvas.pet-canvas').first();
       const box = await canvas.boundingBox();
       expect(box).not.toBeNull();
       expect(box!.width).toBeGreaterThan(0);
       expect(box!.height).toBeGreaterThan(0);
+    } finally {
+      await app.close();
+    }
+  });
+
+  test('settings route opens and renders controls', async () => {
+    const { app, discoveryPath } = await launchUniPet();
+    try {
+      await waitForDiscovery(discoveryPath);
+      const { render } = await classifyWindows(app);
+      await render!.goto(`${render!.url()}#/settings`);
+      await expect(render!.locator('.settings-app')).toBeVisible();
+      await expect(render!.locator('input.search-input')).toBeVisible();
+      await expect(render!.locator('.sidebar-tab').filter({ hasText: 'General' })).toBeVisible();
+      await expect(render!.locator('.preview canvas')).toBeVisible();
     } finally {
       await app.close();
     }

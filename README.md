@@ -34,6 +34,8 @@ Get the latest build from [**Releases**](https://github.com/qaz154/unipet/releas
 > ```
 > xattr -dr com.apple.quarantine /Applications/UniPet.app
 > ```
+>
+> Windows is the primary verified desktop target today. macOS DMG and Linux AppImage builds are published, but transparent-window behavior still needs broader real-device validation.
 
 ## Quick Start
 
@@ -68,9 +70,9 @@ The pet automatically reacts when your agent starts working. No configuration ne
 | **Copilot CLI** | Hooks (auto) |
 | **Kiro CLI** | Hooks (auto) |
 | **Kimi CLI** | Hooks (auto) |
-| **OpenCode** | Plugin |
-| **OpenClaw** | Plugin |
-| **Hermes** | Plugin |
+| **OpenCode** | Plugin roadmap |
+| **OpenClaw** | Plugin roadmap |
+| **Hermes** | Plugin roadmap |
 | **Any MCP agent** | MCP Server |
 
 ## Features
@@ -87,7 +89,7 @@ The pet automatically reacts when your agent starts working. No configuration ne
 | **Global Hotkeys** | `Ctrl+Shift+Y` = Allow, `Ctrl+Shift+N` = Deny |
 | **Mini Mode** | Drag to edge → pet hides with peek-on-hover |
 | **Sleep Sequence** | Yawning → dozing → sleeping after idle timeout |
-| **3 Renderers** | CSS pixel art, SVG, spritesheet |
+| **3 Renderers** | CSS pixel art, SVG, spritesheet — Live2D is on the roadmap |
 | **Theme System** | JSON schema + variants + import/export |
 | **Sound Effects** | Chiptune-style feedback for state changes |
 | **MCP Server** | `npx @unipet/mcp` — 4 tools for any MCP agent |

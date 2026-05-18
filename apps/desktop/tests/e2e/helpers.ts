@@ -10,10 +10,12 @@
 import { _electron, type ElectronApplication } from '@playwright/test';
 import { mkdtempSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { setTimeout as wait } from 'node:timers/promises';
 
-const REPO_ROOT = join(__dirname, '..', '..');
+const CURRENT_DIR = dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = join(CURRENT_DIR, '..', '..');
 const MAIN_PATH = join(REPO_ROOT, 'dist-electron', 'main.js');
 
 export interface LaunchOptions {

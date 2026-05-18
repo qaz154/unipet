@@ -19,6 +19,9 @@ node_modules/
 # OMC (oh-my-claudecode)
 **/.omc/
 
+# Claude local worktrees
+.claude/worktrees/
+
 # IDE
 .vscode/
 .idea/

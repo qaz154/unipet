@@ -75,6 +75,8 @@
 
 ## 二、UniPet 框架设计
 
+> **实现状态说明（2026-05）**: 本文混合记录了已实现架构和后续设计。当前可验证实现以 Electron + Vue + Canvas/CSS 像素渲染、HTTP API、MCP 包、主题 schema、状态/情感/气泡核心为主；Live2D 渲染器仅保留类型/配置占位，AI Perception 未实现，Plugin System 是设计提案，主题市场仍在路线图中。Windows 路径已有 E2E 覆盖；macOS/Linux 构建产物会发布，但透明窗口/打包运行仍需真实平台验证。
+
 ### 2.1 设计原则
 
 1. **Agent无关**: 任何AI agent（Claude Code、Codex、Cursor、自定义LLM、MCP agent）都能接入
@@ -255,7 +257,7 @@ export interface AdapterContext {
 | `CopilotAdapter` | clawd-on-desk | Copilot hooks.json |
 | `MCPAdapter` | openpets | MCP Server (stdio transport) |
 | `HTTPAdapter` | Agentic-Desktop-Pet | REST API + SSE |
-| `AIPerceptionAdapter` | qq-slime-pet | 定时截屏 + 多模态LLM |
+| `AIPerceptionAdapter` | qq-slime-pet | 定时截屏 + 多模态LLM（计划项，未实现） |
 | `GitAdapter` | 新设计 | Git状态监听(push/merge/conflict) |
 | `CustomAdapter` | 新设计 | 用户自定义webhook/脚本 |
 
@@ -295,7 +297,7 @@ export const BUILTIN_RENDERERS = {
   'css-pixel': CSSPixelRenderer,     // qq-slime-pet 的逐行像素变形
   'svg': SVGRenderer,                // clawd-on-desk 的SVG/GIF/APNG
   'spritesheet': SpriteRenderer,     // openpets 的精灵表动画
-  'live2d': Live2DRenderer,          // BongoCat 的PixiJS+Live2D
+  'live2d': Live2DRenderer,          // 计划项：当前仅 stub / 配置占位，未接入 PixiJS/Live2D 运行时
 } as const;
 ```
 
@@ -566,7 +568,7 @@ export interface PluginContext {
 | **桌面框架** | Electron 36 | clawd-on-desk | ~150MB包大小，成熟生态，透明窗口+系统托盘 |
 | **前端框架** | Vue 3 + TypeScript | BongoCat | 组合式API适合桌面宠物，类型安全 |
 | **状态管理** | 自定义优先级状态机 | clawd-on-desk | 24状态优先级解析，多会话支持 |
-| **渲染引擎** | 可插拔 | 综合 | CSS-Pixel + SVG + Sprite + Live2D |
+| **渲染引擎** | 可插拔 | 综合 | CSS-Pixel + SVG + Sprite（Live2D 为 stub/路线图） |
 | **动画库** | Canvas 2D + CSS | qq-slime-pet + BongoCat | 高性能像素渲染 + SVG/CSS过渡 |
 | **MCP实现** | @modelcontextprotocol/sdk | openpets | 官方SDK，标准协议 |
 | **配置存储** | 原子JSON文件写入 | clawd-on-desk | write-to-temp + rename 防崩溃 |
@@ -699,19 +701,19 @@ unipet/
 - [x] 多会话状态解析
 - [x] 边缘吸附 + 巡逻 + 窥视
 
-### Phase 5: 跨平台打磨 (Electron 已覆盖基础)
-- [x] Windows: BrowserWindow + setAlwaysOnTop + setIgnoreMouseEvents
-- [ ] macOS: NSPanel 原生面板 (待验证)
-- [ ] Linux: Wayland/X11 透明窗口适配 (待测试)
+### Phase 5: 跨平台打磨 (Electron 已覆盖基础；真实平台验证仍在进行)
+- [x] Windows: BrowserWindow + setAlwaysOnTop + setIgnoreMouseEvents（E2E 覆盖）
+- [ ] macOS: DMG 构建产物发布；透明窗口/NSPanel-like 行为待真机验证
+- [ ] Linux: AppImage 构建产物发布；Wayland/X11 透明窗口待真机验证
 - [ ] ContentProtection — setContentProtection API
 - [ ] 全局输入捕获 — 待集成
 
 ### Phase 6: 生态与发布 (进行中)
 - [x] CLI工具 — 基础命令 (mcp/status/react/say)
 - [ ] `unipet install` / `unipet doctor` / `unipet theme`
-- [ ] 主题市场 — 远程目录 + 本地发现
-- [ ] Live2D渲染器（可选）
-- [ ] AI感知适配器 — 截屏 + 多模态LLM
+- [ ] 主题市场 — 远程目录 + 本地发现（路线图，未实现）
+- [ ] Live2D渲染器 — 当前仅 stub / 配置占位，未接入运行时
+- [ ] AI感知适配器 — 截屏 + 多模态LLM（未实现）
 - [ ] 文档站
 
 ---
@@ -722,13 +724,13 @@ unipet/
 |------|--------------|----------|--------|
 | 桌面框架 | Electron (~150MB) | Electron (~150MB) | **Electron 36 (~150MB)** |
 | Agent支持 | 12种(每种单独适配) | MCP为主 | **统一适配层 + 10种适配器** |
-| AI能力 | 无 | 无 | **可选LLM对话 + 多模态感知(计划中)** |
+| AI能力 | 无 | 无 | **情感向量已实现；LLM对话/多模态感知为计划项** |
 | 情感系统 | 10状态优先级 | 11反应 | **多维情感向量(PAD) + 时间衰减** |
-| 渲染方式 | SVG/GIF/APNG | 精灵表 | **可插拔(3种渲染器)** |
-| 主题系统 | 完整但SVG-only | 精灵表only | **统一schema支持所有渲染器** |
+| 渲染方式 | SVG/GIF/APNG | 精灵表 | **可插拔(3种已实现；Live2D 为 stub/路线图)** |
+| 主题系统 | 完整但SVG-only | 精灵表only | **统一schema支持已实现渲染器；远程市场为路线图** |
 | 测试 | ~160个 | 0个 | **核心75+测试** |
 | 语言 | JavaScript(CJS) | TypeScript | **TypeScript** |
-| 插件系统 | 无 | 无 | **完整插件API** |
+| 插件系统 | 无 | 无 | **设计提案，未实现运行时** |
 
 ---
 
