@@ -153,7 +153,7 @@ onMounted(async () => {
   if (renderMode.value === 'svg' && svgContainerRef.value && activeTheme) {
     renderers.svgRenderer = new SVGRenderer();
     const stateFiles = buildStateFiles(activeTheme.id, activeTheme.states as Record<string, { files: string[] }>);
-    const svgConfig = { ...(activeTheme.rendererConfig as any), stateFiles };
+    const svgConfig = { ...(activeTheme.rendererConfig as unknown as Record<string, unknown>), stateFiles };
     await renderers.svgRenderer.init(svgContainerRef.value, { scale: displayScale.value, opacity: petStore.opacity }, svgConfig);
     renderers.svgRenderer.setState('idle', { duration: 0 });
   } else if (renderMode.value === 'css-theme' && canvasRef.value && activeTheme) {

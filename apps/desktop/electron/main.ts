@@ -125,7 +125,7 @@ function createRenderWindow(): BrowserWindow {
   });
 
   // Crash recovery
-  ctx.renderWin.on('render-process-gone' as any, (_e: any, details: any) => {
+  ctx.renderWin.webContents.on('render-process-gone', (_e, details) => {
     log.error('Render process crashed:', details?.reason);
     setTimeout(() => {
       if (ctx.renderWin && !ctx.renderWin.isDestroyed()) {
@@ -194,7 +194,7 @@ function exitMiniMode(): void {
   if (!ctx.isMiniMode) return;
   ctx.isMiniMode = false;
 
-  const saved = getSetting<{ x: number; y: number }>(settings, 'windowPosition', null as any);
+  const saved = getSetting<{ x: number; y: number } | null>(settings, 'windowPosition', null);
   if (saved && ctx.renderWin && !ctx.renderWin.isDestroyed()) {
     animateWindow(saved.x, saved.y, 300);
   }
