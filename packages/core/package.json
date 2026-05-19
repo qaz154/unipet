@@ -1,6 +1,6 @@
 {
   "name": "@unipet/core",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Core state machine, event bus, emotion engine, and bubble manager for UniPet",
   "type": "module",
   "license": "MIT",

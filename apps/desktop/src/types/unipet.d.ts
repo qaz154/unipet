@@ -84,6 +84,8 @@ export interface UniPetBridge {
 }
 
 declare global {
+  const __UNIPET_VERSION__: string;
+
   interface Window {
     /** Defined by `electron/preload.ts` in the renderer/settings windows. */
     unipet?: UniPetBridge;

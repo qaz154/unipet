@@ -22,7 +22,7 @@ import SettingsAgentList from './components/SettingsAgentList.vue';
 import SettingsPreview from './components/SettingsPreview.vue';
 import SettingsSidebar from './components/SettingsSidebar.vue';
 
-const APP_VERSION = '0.1.5';
+const APP_VERSION = __UNIPET_VERSION__;
 
 const petStore = usePetStore();
 const settingsStore = useSettingsStore();

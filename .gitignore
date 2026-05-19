@@ -38,3 +38,12 @@ scripts/pixel-to-svg.ts
 
 # Electron
 out/
+
+# Test results
+test-results/
+playwright-report/
+
+# System files
+*.swp
+*.swo
+*~
