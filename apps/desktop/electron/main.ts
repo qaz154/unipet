@@ -11,6 +11,7 @@
  */
 
 import { app, BrowserWindow, screen, globalShortcut, dialog } from 'electron';
+import type { BrowserWindowConstructorOptions } from 'electron';
 import { join } from 'path';
 import { execFile } from 'child_process';
 import { fileURLToPath } from 'url';
@@ -72,11 +73,57 @@ function getWindowSize(): { width: number; height: number } {
   return SIZE_PRESETS[size] || SIZE_PRESETS.M;
 }
 
+// ─── Platform-Specific Window Options ────────────────────
+
+/**
+ * Returns platform-specific BrowserWindow constructor options.
+ *
+ * macOS:
+ *  - `type: 'panel'` gives NSPanel behavior (stays above other windows, does not steal focus)
+ *  - `titleBarStyle: 'hiddenInset'` hides the native title bar while keeping traffic-light positioning
+ *  - `skipTaskbar` is ignored on macOS; dock hiding is handled separately via `app.dock?.hide()`
+ *
+ * Linux:
+ *  - X11: transparent windows work with the default settings
+ *  - Wayland: `transparent: true` alone can leave artifacts; a fully transparent background color
+ *    as a fallback ensures correct compositing.  Note that some Wayland compositors still have
+ *    limitations with always-on-top transparent windows.
+ */
+function getPlatformWindowOptions(): Partial<BrowserWindowConstructorOptions> {
+  const platform = process.platform;
+
+  if (platform === 'darwin') {
+    return {
+      type: 'panel',
+      titleBarStyle: 'hiddenInset',
+      // skipTaskbar is not honored on macOS; dock visibility is set via app.dock?.hide()
+      skipTaskbar: false,
+      trafficLightPosition: { x: 0, y: 0 },
+    };
+  }
+
+  if (platform === 'linux') {
+    // Wayland compositors may not honour `transparent` correctly without an explicit
+    // fully-transparent background colour.  X11 works fine with just `transparent: true`.
+    const isWayland = !!process.env['WAYLAND_DISPLAY'] || !!process.env['XDG_SESSION_TYPE']?.includes('wayland');
+    if (isWayland) {
+      return {
+        backgroundColor: '#00000000',
+      };
+    }
+    return {};
+  }
+
+  // Windows and other platforms use the defaults
+  return {};
+}
+
 // ─── Render Window ───────────────────────────────────────
 
 function createRenderWindow(): BrowserWindow {
   const pos = getSavedPosition();
   const size = getWindowSize();
+  const platformOpts = getPlatformWindowOptions();
 
   ctx.renderWin = new BrowserWindow({
     width: size.width,
@@ -89,6 +136,7 @@ function createRenderWindow(): BrowserWindow {
     skipTaskbar: true,
     alwaysOnTop: true,
     hasShadow: false,
+    ...platformOpts,
     webPreferences: {
       preload: join(dir, '..', 'electron', 'preload.cjs'),
       contextIsolation: true,
@@ -96,6 +144,11 @@ function createRenderWindow(): BrowserWindow {
       sandbox: true,
     },
   });
+
+  // macOS: hide traffic-light buttons and prevent focus theft
+  if (process.platform === 'darwin') {
+    ctx.renderWin.setWindowButtonVisibility(false);
+  }
 
   ctx.renderWin.setFocusable(false);
   ctx.renderWin.setAlwaysOnTop(true, 'pop-up-menu');
@@ -396,6 +449,18 @@ app.whenReady().then(() => {
   startTopmostWatchdog();
   createTray(ctx, trayDeps);
   httpServer.start(DEFAULT_HTTP_PORT, ctx.renderWin);
+
+  // macOS: hide the dock icon so the pet does not appear in the Dock or Cmd+Tab switcher.
+  // This is the macOS equivalent of skipTaskbar on Windows.
+  if (process.platform === 'darwin') {
+    app.dock?.hide();
+  }
+
+  // Linux: Wayland compositors (GNOME 44+, KDE Plasma 6, etc.) may exhibit visual artifacts
+  // with always-on-top transparent windows.  If issues are reported, consider:
+  //   1. Falling back to X11 via `--ozone-platform=x11`
+  //   2. Disabling transparency and using a shaped window instead
+  // The getPlatformWindowOptions() helper already applies a backgroundColor fallback for Wayland.
 
   // ── Global Shortcuts ─────────────────────────────────────
   globalShortcut.register('Ctrl+Shift+Y', () => {
