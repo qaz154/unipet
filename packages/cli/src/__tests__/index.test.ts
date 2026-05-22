@@ -17,7 +17,7 @@ function stdoutText(): string {
 function writeDiscovery(httpPort: number): string {
   const dir = mkdtempSync(join(tmpdir(), 'unipet-cli-test-'));
   const file = join(dir, 'ipc.json');
-  writeFileSync(file, JSON.stringify({ httpPort, pid: 1234, startedAt: '2026-05-18T00:00:00.000Z', version: '0.1.5' }));
+  writeFileSync(file, JSON.stringify({ httpPort, pid: 1234, startedAt: '2026-05-18T00:00:00.000Z', version: '0.1.6' }));
   process.env['UNIPET_IPC_PATH'] = file;
   return file;
 }

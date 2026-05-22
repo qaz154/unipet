@@ -11,11 +11,15 @@ import { writeFileSync, mkdirSync, unlinkSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { randomBytes } from 'crypto';
+import { createRequire } from 'node:module';
 import { Notification } from 'electron';
 import { isExternallyAllowedState, sanitizeBubbleText, DEFAULT_HTTP_PORT, SPEECH_MAX_LENGTH, type MoveTarget } from '@unipet/core';
 
 const MAX_PORT_RETRIES = 100;
 const MAX_BODY_SIZE = 4096;
+
+const require = createRequire(import.meta.url);
+const APP_VERSION: string = require('../package.json').version;
 
 const VALID_MOVE_TARGETS = new Set([
   'stay', 'center', 'edge-left', 'edge-right', 'edge-top', 'edge-bottom',
@@ -434,7 +438,7 @@ export class PetHttpServer {
         httpPort: this._port,
         pid: process.pid,
         startedAt: new Date().toISOString(),
-        version: '0.1.3',
+        version: APP_VERSION,
       };
       writeFileSync(join(dir, 'ipc.json'), JSON.stringify(info, null, 2));
     } catch { /* non-critical */ }

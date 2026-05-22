@@ -10,6 +10,10 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { EXTERNALLY_ALLOWED_STATES, SPEECH_MAX_LENGTH } from '@unipet/core';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const PKG_VERSION: string = require('../package.json').version;
 
 // Reactions match the policy in @unipet/core. MoveTargets are local because
 // they aren't states — they live in a different namespace.
@@ -36,7 +40,7 @@ export function createMCPServer(config?: MCPServerConfig): McpServer {
   currentConfig = config;
   const server = new McpServer({
     name: 'unipet',
-    version: '0.1.3',
+    version: PKG_VERSION,
   });
 
   // ─── Tool: unipet_status ──────────────────────────────────

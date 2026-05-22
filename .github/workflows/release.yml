@@ -84,12 +84,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
+      - name: Verify packaged artifacts and generate checksums
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          version="${TAG_NAME#v}"
+
+          test -f "unipet-win/UniPet.Setup.${version}.exe"
+          test -f "unipet-linux/UniPet-${version}.AppImage"
+          find unipet-mac -maxdepth 1 -type f -name "UniPet-${version}*.dmg" | grep -q .
+
+          min_size=$((10 * 1024 * 1024))
+          for file in unipet-win/* unipet-mac/* unipet-linux/*; do
+            size=$(stat -c%s "$file")
+            if [ "$size" -lt "$min_size" ]; then
+              echo "Artifact too small: $file ($size bytes)" >&2
+              exit 1
+            fi
+          done
+
+          sha256sum unipet-win/* unipet-mac/* unipet-linux/* > SHA256SUMS.txt
       - uses: softprops/action-gh-release@v2
         with:
           files: |
             unipet-win/*
             unipet-mac/*
             unipet-linux/*
+            SHA256SUMS.txt
           generate_release_notes: true
       - name: Verify release assets
         env:
@@ -116,6 +138,13 @@ jobs:
 
           if ! grep -Fxq "UniPet-${version}.AppImage" <<< "$assets"; then
             echo "Missing release asset: UniPet-${version}.AppImage" >&2
+            echo "Published assets:" >&2
+            echo "$assets" >&2
+            exit 1
+          fi
+
+          if ! grep -Fxq "SHA256SUMS.txt" <<< "$assets"; then
+            echo "Missing release asset: SHA256SUMS.txt" >&2
             echo "Published assets:" >&2
             echo "$assets" >&2
             exit 1

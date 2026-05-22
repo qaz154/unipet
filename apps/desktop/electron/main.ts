@@ -10,7 +10,7 @@
  * - Session tracking with state priority
  */
 
-import { app, BrowserWindow, screen, globalShortcut, dialog } from 'electron';
+import { app, BrowserWindow, screen, globalShortcut, dialog, shell } from 'electron';
 import type { BrowserWindowConstructorOptions } from 'electron';
 import { join } from 'path';
 import { execFile } from 'child_process';
@@ -118,6 +118,55 @@ function getPlatformWindowOptions(): Partial<BrowserWindowConstructorOptions> {
   return {};
 }
 
+function isAllowedAppUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === 'file:') return true;
+    if (process.env['VITE_DEV_SERVER_URL']) {
+      const devUrl = new URL(process.env['VITE_DEV_SERVER_URL']);
+      return parsed.origin === devUrl.origin;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+function isSafeExternalUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
+function attachNavigationGuards(win: BrowserWindow): void {
+  win.webContents.on('will-navigate', (event, url) => {
+    if (isAllowedAppUrl(url)) return;
+    event.preventDefault();
+    log.warn('Blocked renderer navigation:', url);
+    if (isSafeExternalUrl(url)) {
+      shell.openExternal(url).catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : String(err);
+        log.warn('Failed to open external URL:', message);
+      });
+    }
+  });
+
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (isSafeExternalUrl(url)) {
+      shell.openExternal(url).catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : String(err);
+        log.warn('Failed to open external URL:', message);
+      });
+    } else {
+      log.warn('Blocked window.open URL:', url);
+    }
+    return { action: 'deny' };
+  });
+}
+
 // ─── Render Window ───────────────────────────────────────
 
 function createRenderWindow(): BrowserWindow {
@@ -144,6 +193,8 @@ function createRenderWindow(): BrowserWindow {
       sandbox: true,
     },
   });
+
+  attachNavigationGuards(ctx.renderWin);
 
   // macOS: hide traffic-light buttons and prevent focus theft
   if (process.platform === 'darwin') {
