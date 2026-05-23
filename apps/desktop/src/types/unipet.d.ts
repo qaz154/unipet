@@ -65,6 +65,11 @@ export interface UniPetBridge {
     output?: string;
     error?: string;
   }>;
+  uninstallAgent: (agentId: string) => Promise<{
+    success: boolean;
+    output?: string;
+    error?: string;
+  }>;
 
   // ─── Generic IPC invoke ────────────────────────────
   /** Low-level IPC invoke for channels not yet typed. Prefer typed methods. */

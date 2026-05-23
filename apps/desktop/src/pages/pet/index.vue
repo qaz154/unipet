@@ -14,8 +14,8 @@
 import { ref, onMounted, onUnmounted, watch, nextTick, toRef } from 'vue';
 import { EventBus, StateManager, EmotionEngine, BubbleManager } from '@unipet/core';
 import type { PetState } from '@unipet/core';
-import { SVGRenderer, CSSPixelRenderer, SpriteRenderer } from '@unipet/renderers';
-import type { CSSPixelConfig, SpriteConfig } from '@unipet/renderers';
+import { SVGRenderer, CSSPixelRenderer, SpriteRenderer, Live2DRenderer } from '@unipet/renderers';
+import type { CSSPixelConfig, SpriteConfig, Live2DConfig } from '@unipet/renderers';
 import { usePetStore } from '../../stores/pet';
 import { useSettingsStore } from '../../stores/settings';
 import { useI18n } from '../../composables/useI18n';
@@ -39,17 +39,19 @@ const svgContainerRef = ref<HTMLDivElement | null>(null);
 
 // ── Render Mode ──────────────────────────────────────
 const themeLoader = useTheme();
-const renderMode = ref<'css-pixel' | 'svg' | 'css-theme' | 'sprite'>('css-pixel');
+const renderMode = ref<'css-pixel' | 'svg' | 'css-theme' | 'sprite' | 'live2d'>('css-pixel');
 
 // Shared mutable renderer references (used by character manager, lifecycle, and engine)
 const renderers: RendererRefs & {
   cssPixelRenderer: CSSPixelRenderer | null;
   spriteRenderer: SpriteRenderer | null;
+  live2dRenderer: Live2DRenderer | null;
 } = {
   ctx: undefined,
   svgRenderer: null,
   cssPixelRenderer: null,
   spriteRenderer: null,
+  live2dRenderer: null,
 };
 
 const petStore = usePetStore();
@@ -147,6 +149,8 @@ onMounted(async () => {
     renderMode.value = 'css-theme';
   } else if (activeTheme?.renderer === 'spritesheet') {
     renderMode.value = 'sprite';
+  } else if (activeTheme?.renderer === 'live2d') {
+    renderMode.value = 'live2d';
   }
 
   await nextTick();
@@ -175,6 +179,14 @@ onMounted(async () => {
       canvasRef.value,
     );
     renderers.spriteRenderer.setState('idle', { duration: 0 });
+  } else if (renderMode.value === 'live2d' && canvasWrapRef.value && activeTheme) {
+    renderers.live2dRenderer = new Live2DRenderer();
+    await renderers.live2dRenderer.init(
+      canvasWrapRef.value,
+      { scale: displayScale.value, opacity: petStore.opacity },
+      activeTheme.rendererConfig as unknown as Live2DConfig,
+    );
+    renderers.live2dRenderer.setState('idle', { duration: 0 });
   } else if (canvasRef.value) {
     renderers.ctx = canvasRef.value.getContext('2d')!;
     renderers.ctx.imageSmoothingEnabled = false;
@@ -254,6 +266,7 @@ onMounted(async () => {
     if (renderers.svgRenderer) renderers.svgRenderer.setState(s, { duration: 300 });
     if (renderers.cssPixelRenderer) renderers.cssPixelRenderer.setState(s, { duration: 300 });
     if (renderers.spriteRenderer) renderers.spriteRenderer.setState(s, { duration: 300 });
+    if (renderers.live2dRenderer) renderers.live2dRenderer.setState(s, { duration: 300 });
   });
 
   bubbleManager.onBubble((b) => showBubble(b.text));
@@ -279,6 +292,7 @@ onUnmounted(() => {
   if (renderers.svgRenderer) { renderers.svgRenderer.destroy(); renderers.svgRenderer = null; }
   if (renderers.cssPixelRenderer) { renderers.cssPixelRenderer.destroy(); renderers.cssPixelRenderer = null; }
   if (renderers.spriteRenderer) { renderers.spriteRenderer.destroy(); renderers.spriteRenderer = null; }
+  if (renderers.live2dRenderer) { renderers.live2dRenderer.destroy(); renderers.live2dRenderer = null; }
   bubble.destroy();
   emotionEngine?.stop();
   stateManager?.reset();

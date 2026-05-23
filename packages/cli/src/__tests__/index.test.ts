@@ -1,5 +1,5 @@
 import { createServer, type Server } from 'node:http';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -9,6 +9,8 @@ let stdoutSpy: ReturnType<typeof vi.spyOn>;
 let stderrSpy: ReturnType<typeof vi.spyOn>;
 let originalUnipetIpcPath: string | undefined;
 let originalXdgStateHome: string | undefined;
+let originalUnipetRoot: string | undefined;
+let tempRoot: string;
 
 function stdoutText(): string {
   return stdoutSpy.mock.calls.map(([chunk]) => String(chunk)).join('');
@@ -20,6 +22,38 @@ function writeDiscovery(httpPort: number): string {
   writeFileSync(file, JSON.stringify({ httpPort, pid: 1234, startedAt: '2026-05-18T00:00:00.000Z', version: '0.1.6' }));
   process.env['UNIPET_IPC_PATH'] = file;
   return file;
+}
+
+function writeInvalidDiscovery(data: unknown): string {
+  const dir = mkdtempSync(join(tmpdir(), 'unipet-cli-test-'));
+  const file = join(dir, 'ipc.json');
+  writeFileSync(file, JSON.stringify(data));
+  process.env['UNIPET_IPC_PATH'] = file;
+  return file;
+}
+
+function writeTheme(root: string, id: string, overrides: Record<string, unknown> = {}): string {
+  const dir = join(root, 'themes', id);
+  mkdirSync(dir, { recursive: true });
+  const theme = {
+    schemaVersion: 1,
+    id,
+    displayName: id,
+    description: `${id} theme`,
+    renderer: 'css-pixel',
+    rendererConfig: {},
+    states: {
+      idle: { files: ['idle'] },
+      working: { files: ['working'] },
+      thinking: { files: ['thinking'] },
+      error: { files: ['error'] },
+      attention: { files: ['attention'] },
+      sleeping: { files: ['sleeping'] },
+    },
+    ...overrides,
+  };
+  writeFileSync(join(dir, 'theme.json'), JSON.stringify(theme, null, 2));
+  return dir;
 }
 
 function listen(server: Server): Promise<number> {
@@ -47,6 +81,9 @@ async function closedPort(): Promise<number> {
 beforeEach(() => {
   originalUnipetIpcPath = process.env['UNIPET_IPC_PATH'];
   originalXdgStateHome = process.env['XDG_STATE_HOME'];
+  originalUnipetRoot = process.env['UNIPET_ROOT'];
+  tempRoot = mkdtempSync(join(tmpdir(), 'unipet-root-test-'));
+  process.env['UNIPET_ROOT'] = tempRoot;
   process.env['XDG_STATE_HOME'] = mkdtempSync(join(tmpdir(), 'unipet-xdg-test-'));
   stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
   stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
@@ -57,6 +94,9 @@ afterEach(() => {
   else process.env['UNIPET_IPC_PATH'] = originalUnipetIpcPath;
   if (originalXdgStateHome === undefined) delete process.env['XDG_STATE_HOME'];
   else process.env['XDG_STATE_HOME'] = originalXdgStateHome;
+  if (originalUnipetRoot === undefined) delete process.env['UNIPET_ROOT'];
+  else process.env['UNIPET_ROOT'] = originalUnipetRoot;
+  rmSync(tempRoot, { recursive: true, force: true });
   stdoutSpy.mockRestore();
   stderrSpy.mockRestore();
 });
@@ -159,5 +199,81 @@ describe('doctor command', () => {
     } finally {
       await close(server);
     }
+  });
+
+  test('reports invalid discovery files', async () => {
+    writeInvalidDiscovery({ httpPort: 'not-a-number' });
+
+    const code = await main(['doctor', '--json']);
+    const result = JSON.parse(stdoutText()) as { ok: boolean; checks: Array<{ id: string; status: string; message: string }> };
+
+    expect(code).toBe(3);
+    expect(result.ok).toBe(false);
+    expect(result.checks.some((check) => check.id === 'discovery' && check.status === 'fail')).toBe(true);
+  });
+});
+
+describe('install command', () => {
+  test('passes --agent through to hooks installer', async () => {
+    const hooksDir = join(tempRoot, 'hooks');
+    mkdirSync(hooksDir, { recursive: true });
+    const outputFile = join(tempRoot, 'install-args.json');
+    writeFileSync(
+      join(hooksDir, 'install-hooks.js'),
+      `import { writeFileSync } from 'node:fs';\nwriteFileSync(${JSON.stringify(outputFile)}, JSON.stringify(process.argv.slice(2)));\n`,
+    );
+
+    const code = await main(['install', '--agent', 'claude-code']);
+
+    expect(code).toBe(0);
+    expect(JSON.parse(readFileSync(outputFile, 'utf-8'))).toEqual(['--agent', 'claude-code']);
+  });
+
+  test('passes --uninstall through to hooks installer', async () => {
+    const hooksDir = join(tempRoot, 'hooks');
+    mkdirSync(hooksDir, { recursive: true });
+    const outputFile = join(tempRoot, 'install-uninstall-args.json');
+    writeFileSync(
+      join(hooksDir, 'install-hooks.js'),
+      `import { writeFileSync } from 'node:fs';\nwriteFileSync(${JSON.stringify(outputFile)}, JSON.stringify(process.argv.slice(2)));\n`,
+    );
+
+    const code = await main(['install', '--uninstall']);
+
+    expect(code).toBe(0);
+    expect(JSON.parse(readFileSync(outputFile, 'utf-8'))).toEqual(['--uninstall']);
+  });
+});
+
+describe('theme command', () => {
+  test('lists themes from repository themes directory', async () => {
+    writeTheme(tempRoot, 'sample-one');
+    writeTheme(tempRoot, 'sample-two', { renderer: 'svg', description: 'second theme' });
+
+    const code = await main(['theme', 'list', '--json']);
+    const themes = JSON.parse(stdoutText()) as Array<{ id: string; renderer: string; description: string }>;
+
+    expect(code).toBe(0);
+    expect(themes.map((theme) => theme.id)).toContain('sample-one');
+    expect(themes.map((theme) => theme.id)).toContain('sample-two');
+  });
+
+  test('validates theme directories via theme validate', async () => {
+    const themeDir = writeTheme(tempRoot, 'valid-theme');
+
+    const code = await main(['theme', 'validate', themeDir]);
+
+    expect(code).toBe(0);
+    expect(stdoutText()).toContain('Theme is valid');
+  });
+
+  test('returns a clear error when validating an empty theme directory', async () => {
+    const themeDir = join(tempRoot, 'themes', 'empty-theme');
+    mkdirSync(themeDir, { recursive: true });
+
+    const code = await main(['theme', 'validate', themeDir]);
+
+    expect(code).toBe(1);
+    expect(stderrSpy.mock.calls.map(([chunk]) => String(chunk)).join('')).toContain('Theme path not found');
   });
 });

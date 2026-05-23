@@ -1,10 +1,12 @@
 /**
- * Live2D Renderer — canvas-based fallback
+ * Live2D Renderer — canvas-based fallback with optional SDK seam
  *
- * When a theme specifies `renderer: 'live2d'` but the actual Live2D SDK
- * is not available, this renderer draws a simple animated pet using
- * Canvas 2D primitives. It supports eye tracking, state-based animations,
- * and smooth 60fps rendering via requestAnimationFrame.
+ * When a theme specifies `renderer: 'live2d'` and an `Live2DSdkAdapter` is
+ * supplied at init time (e.g. backed by pixi-live2d-display / Cubism SDK),
+ * the renderer delegates rendering to that adapter. When no adapter is
+ * supplied — or the adapter fails to initialise — the renderer falls back to
+ * a Canvas 2D pet so the surface always renders. This keeps the package free
+ * of heavy SDK dependencies while allowing apps to bring their own SDK.
  */
 
 import type { PetState, EmotionVector } from '@unipet/core';
@@ -14,6 +16,19 @@ export interface Live2DConfig {
   modelFile: string;
   modelConfig: string;
   parameterMap?: Record<string, unknown>;
+  /** Try to use the supplied SDK adapter before falling back to canvas. */
+  preferSdk?: boolean;
+}
+
+export interface Live2DSdkAdapter {
+  init(container: HTMLElement, config: RendererConfig, live2dConfig: Live2DConfig): Promise<void>;
+  setState(state: PetState, options?: TransitionOptions): Promise<void>;
+  setOpacity(value: number): void;
+  setScale(value: number): void;
+  setVisible(value: boolean): void;
+  setEmotion?(emotion: EmotionVector): void;
+  update?(dt: number): void;
+  destroy(): void;
 }
 
 // ─── Drawing constants ──────────────────────────────────────────
@@ -181,9 +196,45 @@ export class Live2DRenderer implements RendererPlugin {
   private mouseY = CANVAS_SIZE / 2;
   private onPointerMove: ((e: PointerEvent) => void) | null = null;
 
-  async init(container: HTMLElement, config: RendererConfig): Promise<void> {
+  // Live2D model metadata. The current package intentionally avoids bundling a
+  // Live2D SDK; these values are retained so SDK-backed loading can be added at
+  // this seam without changing theme schemas or app initialization.
+  private live2dConfig: Live2DConfig | null = null;
+  private sdkAdapter: Live2DSdkAdapter | null = null;
+  private sdkActive = false;
+
+  /** Exposed for debugging and tests — whether the SDK adapter is currently driving rendering. */
+  isSdkActive(): boolean {
+    return this.sdkActive;
+  }
+
+  /** Exposed for debugging — retained model config from init. */
+  getLive2dConfig(): Live2DConfig | null {
+    return this.live2dConfig;
+  }
+
+  async init(
+    container: HTMLElement,
+    config: RendererConfig,
+    live2dConfig?: Live2DConfig,
+    sdkAdapter?: Live2DSdkAdapter,
+  ): Promise<void> {
     this.scale = config.scale;
     this.opacity = config.opacity;
+    this.live2dConfig = live2dConfig ?? null;
+
+    if (sdkAdapter && live2dConfig?.preferSdk) {
+      try {
+        await sdkAdapter.init(container, config, live2dConfig);
+        this.sdkAdapter = sdkAdapter;
+        this.sdkActive = true;
+        return;
+      } catch {
+        // Fall through to canvas fallback below.
+        this.sdkAdapter = null;
+        this.sdkActive = false;
+      }
+    }
 
     this.canvas = document.createElement('canvas');
     this.canvas.width = CANVAS_SIZE;
@@ -209,35 +260,42 @@ export class Live2DRenderer implements RendererPlugin {
     this.rafId = requestAnimationFrame(this.tick);
   }
 
-  async setState(state: PetState, _options?: TransitionOptions): Promise<void> {
+  async setState(state: PetState, options?: TransitionOptions): Promise<void> {
     this.currentState = state;
     this.profile = { ...(STATE_PROFILES[state] ?? DEFAULT_PROFILE) };
     this.elapsed = 0;
+    if (this.sdkActive && this.sdkAdapter) {
+      await this.sdkAdapter.setState(state, options);
+    }
   }
 
-  setEmotion(_emotion: EmotionVector): void {
-    // Emotion influence can be applied to visual parameters in the future
+  setEmotion(emotion: EmotionVector): void {
+    if (this.sdkActive && this.sdkAdapter?.setEmotion) {
+      this.sdkAdapter.setEmotion(emotion);
+    }
   }
 
   setVisible(visible: boolean): void {
     this.visible = visible;
     this.applyStyles();
+    if (this.sdkActive && this.sdkAdapter) this.sdkAdapter.setVisible(visible);
   }
 
   setScale(scale: number): void {
     this.scale = scale;
     this.applyStyles();
+    if (this.sdkActive && this.sdkAdapter) this.sdkAdapter.setScale(scale);
   }
 
   setOpacity(opacity: number): void {
     this.opacity = opacity;
     this.applyStyles();
+    if (this.sdkActive && this.sdkAdapter) this.sdkAdapter.setOpacity(opacity);
   }
 
   update(dt: number): void {
-    // External update hook — advancing elapsed here as well allows
-    // callers who drive the loop externally to keep animations in sync.
-    this.elapsed += dt;
+    if (this.sdkActive && this.sdkAdapter?.update) this.sdkAdapter.update(dt);
+    // Canvas animation is driven by requestAnimationFrame; no manual tick here.
   }
 
   getHitBoxes(): readonly HitBox[] {
@@ -247,6 +305,12 @@ export class Live2DRenderer implements RendererPlugin {
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
+
+    if (this.sdkActive && this.sdkAdapter) {
+      try { this.sdkAdapter.destroy(); } catch { /* ignore */ }
+      this.sdkAdapter = null;
+      this.sdkActive = false;
+    }
 
     if (this.rafId) {
       cancelAnimationFrame(this.rafId);
@@ -263,6 +327,7 @@ export class Live2DRenderer implements RendererPlugin {
       this.canvas = null;
     }
 
+    this.live2dConfig = null;
     this.ctx = null;
   }
 

@@ -15,6 +15,7 @@ import type { PetState } from '@unipet/core';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 
 const execFileAsync = promisify(execFile);
 
@@ -66,36 +67,32 @@ export class HookBasedAdapter extends BaseAdapter {
   }
 
   async install(): Promise<void> {
-    this.ctx?.log.info(`[${this.id}] Installing hooks via install-hooks.js --agent ${this.id}`);
-    try {
-      const hooksDir = getHooksDir();
-      // The install script runs in Node via ELECTRON_RUN_AS_NODE=1 in an Electron context,
-      // or with plain node in a standalone Node.js context
-      await execFileAsync(
-        process.execPath,
-        [new URL('install-hooks.js', `file://${hooksDir}/`).pathname, '--agent', this.def.id],
-        { timeout: 10000, windowsHide: true, env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } },
-      );
-      this.ctx?.log.info(`[${this.id}] Hooks installed successfully`);
-    } catch (err) {
-      this.ctx?.log.error(`[${this.id}] Hook install failed:`, err instanceof Error ? err.message : String(err));
-      throw err;
-    }
+    await this.runHooksInstaller('install');
   }
 
   async uninstall(): Promise<void> {
-    this.ctx?.log.info(`[${this.id}] Uninstalling hooks — removing config at ${this.def.configPath}`);
+    await this.runHooksInstaller('uninstall');
+  }
+
+  private async runHooksInstaller(action: 'install' | 'uninstall'): Promise<void> {
+    const hooksDir = getHooksDir();
+    const scriptPath = join(hooksDir, 'install-hooks.js');
+    const args = action === 'install'
+      ? [scriptPath, '--agent', this.def.id]
+      : [scriptPath, '--agent', this.def.id, '--uninstall'];
+
+    this.ctx?.log.info(`[${this.id}] ${action === 'install' ? 'Installing' : 'Uninstalling'} hooks via install-hooks.js`);
+
     try {
-      const [{ existsSync }, { unlinkSync }] = await Promise.all([import('node:fs'), import('node:fs')]);
-      const { homedir } = await import('node:os');
-      const { join } = await import('node:path');
-      const configFile = join(homedir(), ...this.def.configPath.split('/'));
-      if (existsSync(configFile)) {
-        unlinkSync(configFile);
-        this.ctx?.log.info(`[${this.id}] Removed ${configFile}`);
-      }
+      await execFileAsync(
+        process.execPath,
+        args,
+        { timeout: 10000, windowsHide: true, env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } },
+      );
+      this.ctx?.log.info(`[${this.id}] Hooks ${action === 'install' ? 'installed' : 'uninstalled'} successfully`);
     } catch (err) {
-      this.ctx?.log.warn(`[${this.id}] Uninstall error:`, err instanceof Error ? err.message : String(err));
+      this.ctx?.log.error(`[${this.id}] Hook ${action} failed:`, err instanceof Error ? err.message : String(err));
+      throw err;
     }
   }
 }

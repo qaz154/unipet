@@ -47,6 +47,7 @@ contextBridge.exposeInMainWorld('unipet', {
   isDnd: () => ipcRenderer.invoke('pet:is-dnd'),
   setState: (state: string) => ipcRenderer.invoke('pet:set-state', state),
   installAgent: (agentId: string) => ipcRenderer.invoke('agent:install', agentId),
+  uninstallAgent: (agentId: string) => ipcRenderer.invoke('agent:uninstall', agentId),
 
   // Window controls (for settings window frameless titlebar)
   windowClose: () => ipcRenderer.invoke('window:close'),

@@ -41,3 +41,9 @@ export {
 // NOTE: File utilities (importThemeFromFile, exportThemeToFile, importAndPersistTheme)
 // have been moved to file-utils.ts for Node.js-only usage.
 // Import them directly from '@unipet/themes/file-utils' in CLI/main process code.
+
+export {
+  ThemeMarketplace,
+  type MarketplaceSource,
+  type MarketplaceEntry,
+} from './marketplace.js';

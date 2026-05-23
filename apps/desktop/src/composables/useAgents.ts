@@ -104,9 +104,36 @@ export function useAgents(deps: UseAgentsDeps): UseAgentsReturn {
         setTimeout(() => { delete agentStatus.value[id]; }, 8000);
       }
     } else {
-      settingsStore.enabledAdapters.splice(idx, 1);
-      agentStatus.value[id] = t('status.disabled');
-      setTimeout(() => { delete agentStatus.value[id]; }, 2000);
+      if (!needsInstall) {
+        settingsStore.enabledAdapters.splice(idx, 1);
+        agentStatus.value[id] = t('status.disabled');
+        setTimeout(() => { delete agentStatus.value[id]; }, 2000);
+        return;
+      }
+
+      agentInstalling.value = id;
+      agentStatus.value[id] = t('status.installing');
+
+      try {
+        const ep = window.unipet;
+        if (ep?.uninstallAgent) {
+          const result = await ep.uninstallAgent(id);
+          if (result?.success) {
+            settingsStore.enabledAdapters.splice(idx, 1);
+            agentStatus.value[id] = t('status.disabled');
+          } else {
+            agentStatus.value[id] = `${t('status.error')}: ${result?.error || 'Unknown'}`;
+          }
+        } else {
+          settingsStore.enabledAdapters.splice(idx, 1);
+          agentStatus.value[id] = t('status.disabled');
+        }
+      } catch (err) {
+        agentStatus.value[id] = `Error: ${(err as Error).message}`;
+      } finally {
+        agentInstalling.value = null;
+        setTimeout(() => { delete agentStatus.value[id]; }, 8000);
+      }
     }
   }
 

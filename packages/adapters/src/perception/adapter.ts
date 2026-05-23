@@ -61,6 +61,12 @@ const ACTIVITY_STATE_MAP: Record<string, PetState> = {
   notification: 'notification',
 };
 
+/** Map an LLM activity keyword to a canonical PetState. Falls back to 'idle'. */
+export function mapActivityToState(activity: string): PetState {
+  const normalized = activity.toLowerCase().trim().replace(/[\s-]+/g, '_');
+  return ACTIVITY_STATE_MAP[normalized] ?? 'idle';
+}
+
 const DEFAULT_MODEL = 'gpt-4o';
 const DEFAULT_CAPTURE_INTERVAL_SEC = 30;
 const DEFAULT_LISTEN_PORT = 23335;
@@ -428,7 +434,6 @@ export class PerceptionAdapter extends BaseAdapter {
    * Falls back to 'idle' for unrecognized activities.
    */
   private mapActivityToState(activity: string): PetState {
-    const normalized = activity.toLowerCase().replace(/[\s-]+/g, '_');
-    return ACTIVITY_STATE_MAP[normalized] ?? 'idle';
+    return mapActivityToState(activity);
   }
 }

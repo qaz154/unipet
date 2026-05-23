@@ -65,7 +65,7 @@ export function createMCPServer(config?: MCPServerConfig): McpServer {
     'Set a visual reaction on the desktop pet (idle, thinking, working, editing, testing, waiting, waving, attention, error, celebrating)',
     { reaction: z.enum(VALID_REACTIONS as unknown as [string, ...string[]]) },
     async ({ reaction }) => {
-      const result = await callIPC('pet.react', { reaction });
+      const result = await callIPC('pet.react', { state: reaction });
       return {
         content: [{
           type: 'text' as const,
@@ -130,8 +130,8 @@ export async function startMCPServer(config?: MCPServerConfig): Promise<void> {
 }
 
 // ─── IPC Communication ───────────────────────────────────────
-// In production, this connects to the desktop app via Unix socket / Named pipe.
-// For now, it's a stub that returns errors when the app isn't running.
+// In production, this connects to the desktop app via the discovery file + HTTP.
+// The MCP client talks to the desktop app through packages/mcp-server/src/ipc-client.ts.
 
 let currentConfig: MCPServerConfig | undefined;
 

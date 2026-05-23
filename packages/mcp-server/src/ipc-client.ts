@@ -43,6 +43,19 @@ function readDiscoveryFile(socketPath?: string): DiscoveryInfo | null {
   return null;
 }
 
+function readAuthToken(): string {
+  try {
+    return readFileSync(join(homedir(), '.unipet', 'auth-token'), 'utf-8').trim();
+  } catch {
+    return '';
+  }
+}
+
+function authHeader(): Record<string, string> {
+  const token = readAuthToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export interface CallIPCOptions {
   /** Override discovery file path (e.g. for tests or custom deployments) */
   socketPath?: string;
@@ -88,6 +101,7 @@ export async function callIPC(
         headers: {
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(postData),
+          ...authHeader(),
         },
       },
       (res) => {

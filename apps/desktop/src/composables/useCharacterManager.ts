@@ -43,7 +43,7 @@ export interface CharacterManagerOpts {
   };
   displayScale: ComputedRef<number>;
   showBubble: (text: string) => void;
-  renderMode: Ref<'css-pixel' | 'svg' | 'css-theme' | 'sprite'>;
+  renderMode: Ref<'css-pixel' | 'svg' | 'css-theme' | 'sprite' | 'live2d'>;
   canvasRef: Ref<HTMLCanvasElement | null>;
   svgContainerRef: Ref<HTMLDivElement | null>;
   renderers: RendererRefs;

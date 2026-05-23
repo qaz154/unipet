@@ -27,8 +27,7 @@ function isValidPort(port) {
   return typeof port === 'number' && Number.isInteger(port) && port >= 1 && port <= 65535;
 }
 
-/** Find the UniPet HTTP server port from the discovery file. */
-export function getServerPort() {
+export function getServerInfo() {
   const paths = [
     join(homedir(), '.local', 'state', 'unipet', 'ipc.json'),
     join(homedir(), 'AppData', 'Local', 'unipet', 'ipc.json'),
@@ -36,10 +35,37 @@ export function getServerPort() {
   for (const p of paths) {
     try {
       const data = JSON.parse(readFileSync(p, 'utf-8'));
-      if (isValidPort(data.httpPort)) return data.httpPort;
+      if (isValidPort(data.httpPort)) return data;
     } catch { /* next */ }
   }
-  return 23333;
+  return { httpPort: 23333 };
+}
+
+/** Find the UniPet HTTP server port from the discovery file. */
+export function getServerPort() {
+  return getServerInfo().httpPort;
+}
+
+export function getAuthToken() {
+  const tokenPaths = [
+    join(homedir(), '.unipet', 'auth-token'),
+  ];
+  for (const p of tokenPaths) {
+    try {
+      const token = readFileSync(p, 'utf-8').trim();
+      if (token) return token;
+    } catch { /* next */ }
+  }
+  return '';
+}
+
+function authHeaders(contentLength) {
+  const token = getAuthToken();
+  return {
+    'Content-Type': 'application/json',
+    'Content-Length': contentLength,
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
 }
 
 /**

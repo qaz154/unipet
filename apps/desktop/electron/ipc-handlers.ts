@@ -187,15 +187,21 @@ export function registerIpcHandlers(ctx: AppContext, deps: IpcDeps): void {
 
   ipcMain.handle('app:open-settings', () => deps.openSettings());
   ipcMain.handle('app:is-paused', () => ctx.isPaused);
-  ipcMain.handle('agent:install', async (_e, agentId: unknown) => {
+
+  function runAgentInstaller(agentId: unknown, action: 'install' | 'uninstall'): Promise<{ success: boolean; output?: string; error?: string }> | { success: false; error: string } {
     if (typeof agentId !== 'string' || !ALLOWED_AGENT_IDS.has(agentId)) {
       return { success: false, error: `Unknown agent "${String(agentId)}". Available: ${[...ALLOWED_AGENT_IDS].join(', ')}` };
     }
+
     const scriptPath = join(deps.dir, '..', '..', 'hooks', 'install-hooks.js');
-    return await new Promise<{ success: boolean; output?: string; error?: string }>((resolve) => {
+    const args = action === 'install'
+      ? [scriptPath, '--agent', agentId]
+      : [scriptPath, '--agent', agentId, '--uninstall'];
+
+    return new Promise<{ success: boolean; output?: string; error?: string }>((resolve) => {
       execFile(
         process.execPath,
-        [scriptPath, '--agent', agentId],
+        args,
         {
           timeout: 10000,
           windowsHide: true,
@@ -210,7 +216,10 @@ export function registerIpcHandlers(ctx: AppContext, deps: IpcDeps): void {
         },
       );
     });
-  });
+  }
+
+  ipcMain.handle('agent:install', async (_e, agentId: unknown) => runAgentInstaller(agentId, 'install'));
+  ipcMain.handle('agent:uninstall', async (_e, agentId: unknown) => runAgentInstaller(agentId, 'uninstall'));
 
   // ── Adapter IPC ──────────────────────────────────────────
 

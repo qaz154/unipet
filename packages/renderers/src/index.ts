@@ -33,4 +33,5 @@ export {
 export {
   Live2DRenderer,
   type Live2DConfig,
+  type Live2DSdkAdapter,
 } from './live2d/renderer.js';

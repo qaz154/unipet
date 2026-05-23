@@ -22,7 +22,7 @@
  *   3  desktop app not running / network error
  */
 
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { execFile } from 'node:child_process';
@@ -37,8 +37,17 @@ const HTTP_TIMEOUT_MS = 3000;
 
 // ─── Path constants ──────────────────────────────────────
 const CLI_DIR = dirname(fileURLToPath(import.meta.url));
-const HOOKS_SCRIPT = join(CLI_DIR, '..', '..', 'hooks', 'install-hooks.js');
-const THEMES_DIR = join(CLI_DIR, '..', '..', 'themes');
+function projectRoot(): string {
+  return process.env['UNIPET_ROOT'] ?? resolve(CLI_DIR, '..', '..', '..');
+}
+
+function hooksScriptPath(): string {
+  return join(projectRoot(), 'hooks', 'install-hooks.js');
+}
+
+function themesDirPath(): string {
+  return join(projectRoot(), 'themes');
+}
 
 // ─── Discovery ─────────────────────────────────────────────
 // Cached because every CLI invocation reads it at most once. Read on first
@@ -402,8 +411,9 @@ async function cmdMcp(): Promise<number> {
 // ─── Install command ────────────────────────────────────
 
 function cmdInstall(parsed: ParsedArgs): Promise<number> {
-  if (!existsSync(HOOKS_SCRIPT)) {
-    process.stderr.write(`Hooks script not found: ${HOOKS_SCRIPT}\n`);
+  const hooksScript = hooksScriptPath();
+  if (!existsSync(hooksScript)) {
+    process.stderr.write(`Hooks script not found: ${hooksScript}\n`);
     return Promise.resolve(1);
   }
 
@@ -414,7 +424,7 @@ function cmdInstall(parsed: ParsedArgs): Promise<number> {
   }
 
   return new Promise((resolvePromise) => {
-    execFile('node', [HOOKS_SCRIPT, ...args], { cwd: CLI_DIR }, (error, stdout, stderr) => {
+    execFile('node', [hooksScript, ...args], { cwd: CLI_DIR }, (error, stdout, stderr) => {
       if (stdout) process.stdout.write(stdout);
       if (stderr) process.stderr.write(stderr);
       resolvePromise(error ? 1 : 0);
@@ -431,15 +441,16 @@ interface ThemeEntry {
 }
 
 function cmdThemeList(parsed: ParsedArgs): number {
-  if (!existsSync(THEMES_DIR)) {
-    process.stderr.write(`Themes directory not found: ${THEMES_DIR}\n`);
+  const themesDir = themesDirPath();
+  if (!existsSync(themesDir)) {
+    process.stderr.write(`Themes directory not found: ${themesDir}\n`);
     return 1;
   }
 
   // Themes live in subdirectories as theme.json (e.g. themes/pixel-slime/theme.json)
-  const entries = readdirSync(THEMES_DIR, { withFileTypes: true }).filter((e) => e.isDirectory());
+  const entries = readdirSync(themesDir, { withFileTypes: true }).filter((e) => e.isDirectory());
   const themes: ThemeEntry[] = entries.map((e) => {
-    const themeFile = join(THEMES_DIR, e.name, 'theme.json');
+    const themeFile = join(themesDir, e.name, 'theme.json');
     try {
       const data: Record<string, unknown> = JSON.parse(readFileSync(themeFile, 'utf-8'));
       return {
@@ -469,6 +480,18 @@ function cmdThemeList(parsed: ParsedArgs): number {
   return 0;
 }
 
+function resolveThemeJsonPath(inputPath: string): string | null {
+  const resolved = resolve(inputPath);
+  if (!existsSync(resolved)) return null;
+  try {
+    const stat = statSync(resolved);
+    const themeFile = stat.isDirectory() ? join(resolved, 'theme.json') : resolved;
+    return existsSync(themeFile) ? themeFile : null;
+  } catch {
+    return null;
+  }
+}
+
 function cmdThemeValidate(parsed: ParsedArgs): number {
   const filePath = parsed.positional[0];
   if (!filePath) {
@@ -476,33 +499,52 @@ function cmdThemeValidate(parsed: ParsedArgs): number {
     return 1;
   }
 
-  const resolved = resolve(filePath);
-  if (!existsSync(resolved)) {
-    process.stderr.write(`File not found: ${resolved}\n`);
+  const themeFile = resolveThemeJsonPath(filePath);
+  if (!themeFile) {
+    process.stderr.write(`Theme path not found: ${resolve(filePath)}\n`);
     return 1;
   }
 
   let data: Record<string, unknown>;
   try {
-    data = JSON.parse(readFileSync(resolved, 'utf-8'));
+    data = JSON.parse(readFileSync(themeFile, 'utf-8'));
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     process.stderr.write(`Invalid JSON: ${msg}\n`);
     return 1;
   }
 
-  const VALID_RENDERERS = ['css-pixel', 'svg', 'sprite', 'live2d'];
+  const REQUIRED_STATES = ['idle', 'working', 'thinking', 'error', 'attention', 'sleeping'];
+  const VALID_RENDERERS = ['css-pixel', 'svg', 'spritesheet', 'live2d'];
   const errors: string[] = [];
 
-  if (data['schemaVersion'] === undefined) errors.push('Missing required field: schemaVersion');
-  if (data['id'] === undefined) errors.push('Missing required field: id');
+  if (data['schemaVersion'] !== 1) errors.push('schemaVersion must be 1');
+  if (typeof data['id'] !== 'string' || !/^[a-z0-9][a-z0-9_-]{0,63}$/.test(data['id'])) {
+    errors.push('id must match /^[a-z0-9][a-z0-9_-]{0,63}$/');
+  }
+  if (typeof data['displayName'] !== 'string' || data['displayName'].length === 0) {
+    errors.push('displayName must be a non-empty string');
+  }
   if (data['renderer'] === undefined) {
     errors.push('Missing required field: renderer');
   } else if (!VALID_RENDERERS.includes(String(data['renderer']))) {
     errors.push(`Invalid renderer: '${data['renderer']}'. Must be one of: ${VALID_RENDERERS.join(', ')}`);
   }
+  if (!isRecord(data['rendererConfig'])) errors.push('rendererConfig must be an object');
+  if (!isRecord(data['states'])) {
+    errors.push('states must be an object');
+  } else {
+    for (const state of REQUIRED_STATES) {
+      const stateConfig = data['states'][state];
+      if (!isRecord(stateConfig)) {
+        errors.push(`Missing required state: ${state}`);
+      } else if (!Array.isArray(stateConfig['files'])) {
+        errors.push(`State "${state}" is missing a valid files array`);
+      }
+    }
+  }
 
-  const result = { valid: errors.length === 0, errors, file: resolved };
+  const result = { valid: errors.length === 0, errors, file: themeFile };
 
   if (parsed.flags.has('json')) {
     printJson(result);

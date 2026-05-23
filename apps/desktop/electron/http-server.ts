@@ -20,6 +20,8 @@ const MAX_BODY_SIZE = 4096;
 
 const require = createRequire(import.meta.url);
 const APP_VERSION: string = require('../package.json').version;
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]', '::1']);
+const LOOPBACK_ADDRESSES = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
 
 const VALID_MOVE_TARGETS = new Set([
   'stay', 'center', 'edge-left', 'edge-right', 'edge-top', 'edge-bottom',
@@ -132,9 +134,14 @@ export class PetHttpServer {
   }
 
   private handleRequest(req: IncomingMessage, res: ServerResponse): void {
-    const origin = req.headers.origin || '';
-    if (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
-      res.setHeader('Access-Control-Allow-Origin', origin);
+    if (!this.isAllowedHost(req)) {
+      this.writeJson(res, 403, { error: 'Forbidden host' });
+      return;
+    }
+
+    if (!this.applyCors(req, res)) {
+      this.writeJson(res, 403, { error: 'Forbidden origin' });
+      return;
     }
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -154,8 +161,8 @@ export class PetHttpServer {
     if (route === 'POST /api/emotion') return this.requireAuth(req, res, () => this.handleEmotion(req, res));
     if (route === 'POST /api/permission') return this.requireAuth(req, res, () => this.handlePermission(req, res));
     if (route === 'POST /api/notify') return this.requireAuth(req, res, () => this.handleNotify(req, res));
-    if (route === 'GET /api/permission-result') return this.handlePermissionResult(req, res);
-    if (route === 'GET /api/events') return this.handleSSE(req, res);
+    if (route === 'GET /api/permission-result') return this.requireAuth(req, res, () => this.handlePermissionResult(req, res));
+    if (route === 'GET /api/events') return this.requireAuth(req, res, () => this.handleSSE(req, res));
     if (route === 'GET /api/status') return this.handleStatus(res);
 
     res.writeHead(404, { 'Content-Type': 'application/json' });
@@ -353,21 +360,44 @@ export class PetHttpServer {
     });
   }
 
-  private requireAuth(req: IncomingMessage, res: ServerResponse, next: () => void): void {
-    // Localhost requests from hook scripts on the same machine skip auth
-    const remoteIp = req.socket.remoteAddress || '';
-    if (remoteIp === '127.0.0.1' || remoteIp === '::1' || remoteIp === '::ffff:127.0.0.1') {
-      next();
-      return;
+  private isAllowedHost(req: IncomingMessage): boolean {
+    const hostHeader = req.headers.host;
+    if (typeof hostHeader !== 'string') return false;
+    const host = hostHeader.split(':')[0]?.toLowerCase();
+    return host !== undefined && LOOPBACK_HOSTS.has(host);
+  }
+
+  private applyCors(req: IncomingMessage, res: ServerResponse): boolean {
+    const originHeader = req.headers.origin;
+    if (originHeader === undefined) return true;
+    if (typeof originHeader !== 'string') return false;
+
+    try {
+      const origin = new URL(originHeader);
+      const host = origin.hostname.toLowerCase();
+      if (!LOOPBACK_HOSTS.has(host)) return false;
+      res.setHeader('Access-Control-Allow-Origin', origin.origin);
+      res.setHeader('Vary', 'Origin');
+      return true;
+    } catch {
+      return false;
     }
-    // Remote requests require Bearer token from ~/.unipet/auth-token
+  }
+
+  private hasValidAuth(req: IncomingMessage): boolean {
+    if (process.env['UNIPET_DEV_NO_AUTH'] === '1') return true;
     const auth = req.headers['authorization'] || '';
-    const token = auth.replace(/^Bearer\s+/i, '').trim();
-    if (token === this.authToken) {
-      next();
+    const token = Array.isArray(auth) ? auth[0] : auth;
+    return token.replace(/^Bearer\s+/i, '').trim() === this.authToken;
+  }
+
+  private requireAuth(req: IncomingMessage, res: ServerResponse, next: () => void): void {
+    const remoteIp = req.socket.remoteAddress || '';
+    if (!LOOPBACK_ADDRESSES.has(remoteIp) || !this.hasValidAuth(req)) {
+      this.writeJson(res, 401, { error: 'Unauthorized. Use Bearer <token> from ~/.unipet/auth-token' });
       return;
     }
-    this.writeJson(res, 401, { error: 'Unauthorized. Use Bearer <token> from ~/.unipet/auth-token' });
+    next();
   }
 
   private writeJson(res: ServerResponse, status: number, payload: unknown): void {

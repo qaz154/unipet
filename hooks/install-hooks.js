@@ -11,10 +11,9 @@
  *           CodeBuddy, Kiro CLI, Kimi CLI, OpenCode, OpenClaw, Hermes
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync, copyFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
-import { execSync } from 'node:child_process';
 
 const HOOKS_DIR = dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1'));
 const HOME = homedir();
@@ -241,17 +240,143 @@ const args = process.argv.slice(2);
 const targetAgent = args.includes('--agent') ? args[args.indexOf('--agent') + 1] : null;
 const uninstall = args.includes('--uninstall');
 
+function removeEntries(entries, predicate) {
+  return Array.isArray(entries) ? entries.filter((entry) => !predicate(entry)) : [];
+}
+
+function hookEntryMatches(hookCmd) {
+  return (entry) => Boolean(
+    entry && typeof entry === 'object' && (
+      entry.command === hookCmd ||
+      entry.bash === hookCmd ||
+      entry.powershell === hookCmd ||
+      (Array.isArray(entry.hooks) && entry.hooks.some((hook) => hook?.command === hookCmd))
+    ),
+  );
+}
+
+function pruneEmptyHookConfig(config) {
+  if (!config.hooks || typeof config.hooks !== 'object') return;
+  for (const key of Object.keys(config.hooks)) {
+    const value = config.hooks[key];
+    if (Array.isArray(value) && value.length === 0) delete config.hooks[key];
+  }
+  if (Object.keys(config.hooks).length === 0) delete config.hooks;
+}
+
+function uninstallAgent(agent, hookCmd) {
+  switch (agent.id) {
+    case 'claude-code':
+    case 'codebuddy': {
+      const config = readJson(agent.configPath, {});
+      config.hooks = config.hooks || {};
+      const events = ['UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'Stop', 'StopFailure', 'Notification'];
+      for (const event of events) {
+        config.hooks[event] = removeEntries(config.hooks[event], hookEntryMatches(hookCmd));
+      }
+      pruneEmptyHookConfig(config);
+      writeJson(agent.configPath, config);
+      return;
+    }
+    case 'codex': {
+      const config = readJson(agent.configPath, { version: 1, hooks: {} });
+      const events = ['session_start', 'tool_use', 'tool_result', 'turn_end', 'error'];
+      for (const event of events) {
+        config.hooks[event] = removeEntries(config.hooks[event], (entry) => entry.command === hookCmd);
+      }
+      writeJson(agent.configPath, config);
+      return;
+    }
+    case 'cursor': {
+      const config = readJson(agent.configPath, { hooks: {} });
+      const events = ['prompt_submit', 'tool_start', 'tool_end', 'agent_end', 'error'];
+      for (const event of events) {
+        config.hooks[event] = removeEntries(config.hooks[event], (entry) => entry.command === hookCmd);
+      }
+      writeJson(agent.configPath, config);
+      return;
+    }
+    case 'gemini': {
+      const config = readJson(agent.configPath, {});
+      config.hooks = config.hooks || {};
+      const events = ['SessionStart', 'BeforeTool', 'AfterTool', 'Notification'];
+      for (const event of events) {
+        config.hooks[event] = removeEntries(config.hooks[event], hookEntryMatches(hookCmd));
+      }
+      pruneEmptyHookConfig(config);
+      writeJson(agent.configPath, config);
+      return;
+    }
+    case 'copilot': {
+      const config = readJson(agent.configPath, { version: 1, hooks: {} });
+      const events = ['sessionStart', 'userPromptSubmitted', 'preToolUse', 'postToolUse', 'sessionEnd'];
+      for (const event of events) {
+        config.hooks[event] = removeEntries(config.hooks[event], (entry) => entry.bash === hookCmd || entry.powershell === hookCmd);
+      }
+      writeJson(agent.configPath, config);
+      return;
+    }
+    case 'kiro': {
+      const config = readJson(agent.configPath, {});
+      const hooks = config.hooks || {};
+      for (const key of Object.keys(hooks)) {
+        hooks[key] = removeEntries(hooks[key], (entry) => entry.command === hookCmd);
+      }
+      config.hooks = hooks;
+      writeJson(agent.configPath, config);
+      return;
+    }
+    case 'kimi': {
+      if (!existsSync(agent.configPath)) return;
+      const toml = readFileSync(agent.configPath, 'utf-8');
+      const blocks = toml.split(/\n(?=\[\[hooks\]\])/g).filter((block) => !block.includes(hookCmd));
+      const next = blocks.join('\n').replace(/^\n+/, '').replace(/\n+$/, '');
+      writeFileSync(agent.configPath, next ? `${next}\n` : '');
+      return;
+    }
+    case 'opencode': {
+      const config = readJson(agent.configPath, {});
+      config.plugin = removeEntries(config.plugin, (entry) => entry === join(HOOKS_DIR, 'opencode-plugin'));
+      writeJson(agent.configPath, config);
+      return;
+    }
+    case 'openclaw': {
+      const config = readJson(agent.configPath, {});
+      config.plugins = config.plugins || {};
+      config.plugins.load = config.plugins.load || {};
+      config.plugins.load.paths = removeEntries(config.plugins.load.paths, (entry) => entry === join(HOOKS_DIR, 'openclaw-plugin'));
+      if (config.plugins.entries && config.plugins.entries.unipet) {
+        delete config.plugins.entries.unipet;
+      }
+      writeJson(agent.configPath, config);
+      return;
+    }
+    case 'hermes': {
+      if (existsSync(agent.configPath)) {
+        try {
+          unlinkSync(agent.configPath);
+        } catch {
+          // best effort
+        }
+      }
+      return;
+    }
+    default:
+      return;
+  }
+}
+
 console.log('UniPet Hook Installer');
 console.log('=====================\n');
 
-let installed = 0;
+let changed = 0;
 let skipped = 0;
 
 for (const agent of AGENTS) {
   if (targetAgent && agent.id !== targetAgent) continue;
 
   const detected = agent.detect();
-  if (!detected) {
+  if (!uninstall && !detected) {
     console.log(`  ⬚ ${agent.name}: not installed, skipping`);
     skipped++;
     continue;
@@ -261,22 +386,29 @@ for (const agent of AGENTS) {
     const hookPath = join(HOOKS_DIR, agent.hookScript);
     const hookCmd = `node "${hookPath}"`;
     try {
-      agent.install(agent.configPath, hookCmd);
-      console.log(`  ✓ ${agent.name}: hooks registered`);
-      installed++;
+      if (uninstall) {
+        uninstallAgent(agent, hookCmd);
+      } else {
+        agent.install(agent.configPath, hookCmd);
+      }
+      console.log(`  ✓ ${agent.name}: hooks ${uninstall ? 'removed' : 'registered'}`);
+      changed++;
     } catch (err) {
       console.log(`  ✗ ${agent.name}: ${err.message}`);
     }
   } else {
-    // Plugin-based agents
     try {
-      agent.install(agent.configPath, '');
-      console.log(`  ✓ ${agent.name}: plugin registered`);
-      installed++;
+      if (uninstall) {
+        uninstallAgent(agent, '');
+      } else {
+        agent.install(agent.configPath, '');
+      }
+      console.log(`  ✓ ${agent.name}: plugin ${uninstall ? 'removed' : 'registered'}`);
+      changed++;
     } catch (err) {
       console.log(`  ✗ ${agent.name}: ${err.message}`);
     }
   }
 }
 
-console.log(`\nDone: ${installed} installed, ${skipped} skipped`);
+console.log(`\nDone: ${changed} modified, ${skipped} skipped`);

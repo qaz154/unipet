@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld('unipet', {
   isPaused: () => ipcRenderer.invoke('app:is-paused'),
   setState: (state) => ipcRenderer.invoke('pet:set-state', state),
   installAgent: (agentId) => ipcRenderer.invoke('agent:install', agentId),
+  uninstallAgent: (agentId) => ipcRenderer.invoke('agent:uninstall', agentId),
 
   windowClose: () => ipcRenderer.invoke('window:close'),
   windowMinimize: () => ipcRenderer.invoke('window:minimize'),
