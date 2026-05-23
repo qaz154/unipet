@@ -10,7 +10,7 @@
  * - Session tracking with state priority
  */
 
-import { app, BrowserWindow, screen, globalShortcut, dialog, shell } from 'electron';
+import { app, BrowserWindow, screen, globalShortcut, powerMonitor, dialog, shell } from 'electron';
 import type { BrowserWindowConstructorOptions } from 'electron';
 import { join } from 'path';
 import { execFile } from 'child_process';
@@ -520,6 +520,24 @@ app.whenReady().then(() => {
   globalShortcut.register('Ctrl+Shift+N', () => {
     ctx.renderWin?.webContents.send('shortcut', 'deny');
   });
+
+  // ── Global input capture: system idle detection ───────────
+  // When the system becomes idle (user away from keyboard/mouse), send a
+  // sleep signal to the renderer so the pet transitions to idle/sleeping.
+  // When user activity resumes, send a wake signal.
+  const IDLE_THRESHOLD_SECONDS = 60;
+  let userIsIdle = false;
+
+  setInterval(() => {
+    const idleSeconds = powerMonitor.getSystemIdleTime();
+    const nowIdle = idleSeconds >= IDLE_THRESHOLD_SECONDS;
+
+    if (nowIdle !== userIsIdle) {
+      userIsIdle = nowIdle;
+      ctx.renderWin?.webContents.send('user-idle', nowIdle);
+      log.info(`User ${nowIdle ? 'went idle' : 'returned'} (idle=${idleSeconds}s)`);
+    }
+  }, 10_000);
 
   // ── Auto-hooks registration (best-effort) ────────────────
   {

@@ -20,7 +20,8 @@ export type UniPetEventChannel =
   | 'drag:started'
   | 'drag:ended'
   | 'throw-pet'
-  | 'shortcut';
+  | 'shortcut'
+  | 'user-idle';
 
 /** Shape of pet:event payload received by the renderer */
 export interface PetEventPayload {

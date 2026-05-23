@@ -26,9 +26,9 @@ Get the latest build from [**Releases**](https://github.com/qaz154/unipet/releas
 
 | Platform | File |
 |----------|------|
-| **Windows** | `UniPet.Setup.0.1.7.exe` |
-| **macOS** | `UniPet-0.1.7-arm64.dmg` |
-| **Linux** | `UniPet-0.1.7.AppImage` |
+| **Windows** | `UniPet.Setup.0.1.8.exe` |
+| **macOS** | `UniPet-0.1.8-arm64.dmg` |
+| **Linux** | `UniPet-0.1.8.AppImage` |
 
 > macOS may show a security warning on first launch. Right-click → Open, or run:
 > ```
@@ -70,9 +70,9 @@ The pet automatically reacts when your agent starts working. No configuration ne
 | **Copilot CLI** | Hooks (auto) |
 | **Kiro CLI** | Hooks (auto) |
 | **Kimi CLI** | Hooks (auto) |
-| **OpenCode** | Plugin roadmap |
-| **OpenClaw** | Plugin roadmap |
-| **Hermes** | Plugin roadmap |
+| **OpenCode** | Plugin (auto-install) |
+| **OpenClaw** | Plugin (auto-install) |
+| **Hermes** | Plugin (auto-install) |
 | **Any MCP agent** | MCP Server |
 
 ## Features

@@ -56,7 +56,7 @@ contextBridge.exposeInMainWorld('unipet', {
     const allowed = [
       'pet:pause-toggled', 'pet:event', 'pet:mini-mode', 'pet:size-changed',
       'pet:clicked', 'settings:loaded', 'settings:changed', 'mouse-move',
-      'drag:started', 'drag:ended', 'throw-pet', 'shortcut', 'permission:resolved',
+      'drag:started', 'drag:ended', 'throw-pet', 'shortcut', 'permission:resolved', 'user-idle',
     ];
     if (!allowed.includes(channel)) return;
 

@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { createServer } from 'node:http';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ThemeMarketplace, type MarketplaceSource, type MarketplaceEntry } from './marketplace.js';
 import { createLocalMarketplaceSource } from './marketplace-local.js';
+import { createRemoteMarketplaceSource } from './marketplace-remote.js';
 
 function writeTheme(root: string, id: string, overrides: Record<string, unknown> = {}): void {
   const dir = join(root, id);
@@ -111,5 +113,66 @@ describe('createLocalMarketplaceSource', () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  });
+});
+
+describe('createRemoteMarketplaceSource', () => {
+  it('fetches and parses a remote JSON index', async () => {
+    const index = [
+      { id: 'neon-cat', displayName: 'Neon Cat', description: 'glowing', renderer: 'css-pixel' },
+      { id: 'wave-slime', displayName: 'Wave Slime', renderer: 'svg', downloadUrl: 'https://example.com/wave-slime.zip' },
+    ];
+
+    const server = createServer((_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(index));
+    });
+    const port = await new Promise<number>((resolve) => server.listen(0, '127.0.0.1', () => resolve((server.address() as { port: number }).port)));
+
+    try {
+      const source = createRemoteMarketplaceSource(`http://127.0.0.1:${port}/index.json`);
+      const list = await source.list();
+
+      expect(list.map((e) => e.id).sort()).toEqual(['neon-cat', 'wave-slime']);
+      expect(list.find((e) => e.id === 'wave-slime')?.downloadUrl).toBe('https://example.com/wave-slime.zip');
+      expect(list[0]?.source).toBe('remote');
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it('throws when the server returns a non-array', async () => {
+    const server = createServer((_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'not an array' }));
+    });
+    const port = await new Promise<number>((resolve) => server.listen(0, '127.0.0.1', () => resolve((server.address() as { port: number }).port)));
+
+    try {
+      await expect(createRemoteMarketplaceSource(`http://127.0.0.1:${port}/index.json`).list()).rejects.toThrow('not an array');
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it('throws on HTTP error status', async () => {
+    const server = createServer((_req, res) => { res.writeHead(404); res.end(); });
+    const port = await new Promise<number>((resolve) => server.listen(0, '127.0.0.1', () => resolve((server.address() as { port: number }).port)));
+
+    try {
+      await expect(createRemoteMarketplaceSource(`http://127.0.0.1:${port}/index.json`).list()).rejects.toThrow('HTTP 404');
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it('ThemeMarketplace skips remote source when it throws', async () => {
+    const remote = createRemoteMarketplaceSource('http://127.0.0.1:1/unreachable.json');
+    const marketplace = new ThemeMarketplace([
+      remote,
+      { name: 'local', async list() { return [{ id: 'x', displayName: 'X', description: '', renderer: 'css-pixel', source: 'local' }]; } },
+    ]);
+    const list = await marketplace.list();
+    expect(list.map((e) => e.id)).toEqual(['x']);
   });
 });

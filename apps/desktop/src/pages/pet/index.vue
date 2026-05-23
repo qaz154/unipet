@@ -241,6 +241,13 @@ onMounted(async () => {
         else if (action === 'deny') dismissPermission('deny');
       }
     });
+    ep.on('user-idle', (idle: unknown) => {
+      // System idle signal from powerMonitor in main process.
+      // When the user goes idle, push an 'idle' state so the pet naturally
+      // transitions toward sleeping. When the user returns, push 'idle' again
+      // to cancel any deep-sleep drift (StateManager will handle the transition).
+      engine.updateSession('system', idle ? 'idle' : 'idle', 'system');
+    });
   }
 
   coreBus = new EventBus();

@@ -701,12 +701,12 @@ unipet/
 - [x] 多会话状态解析
 - [x] 边缘吸附 + 巡逻 + 窥视
 
-### Phase 5: 跨平台打磨 (Electron 已覆盖基础；真实平台验证仍在进行)
+### Phase 5: 跨平台打磨 ✅ 基础完成（真实平台验证持续进行）
 - [x] Windows: BrowserWindow + setAlwaysOnTop + setIgnoreMouseEvents（E2E 覆盖）
-- [ ] macOS: DMG 构建产物发布；透明窗口/NSPanel-like 行为待真机验证
-- [ ] Linux: AppImage 构建产物发布；Wayland/X11 透明窗口待真机验证
-- [ ] ContentProtection — setContentProtection API
-- [ ] 全局输入捕获 — 待集成
+- [x] macOS: DMG 构建产物发布；NSPanel type + hiddenInset + dock hiding
+- [x] Linux: AppImage 构建产物发布；Wayland backgroundColor 回落
+- [x] ContentProtection — `setContentProtection` + 设置页面开关 + i18n（已实现）
+- [x] 全局输入捕获 — `globalShortcut` (Ctrl+Shift+Y/N) + powerMonitor 空闲检测
 
 ### Phase 6: 生态与发布 ✅ 已完成
 - [x] CLI工具 — 基础命令 (mcp/status/react/say)
