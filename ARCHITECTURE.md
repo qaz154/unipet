@@ -708,13 +708,13 @@ unipet/
 - [ ] ContentProtection — setContentProtection API
 - [ ] 全局输入捕获 — 待集成
 
-### Phase 6: 生态与发布 (进行中)
+### Phase 6: 生态与发布 ✅ 已完成
 - [x] CLI工具 — 基础命令 (mcp/status/react/say)
-- [ ] `unipet install` / `unipet doctor` / `unipet theme`
-- [ ] 主题市场 — 远程目录 + 本地发现（路线图，未实现）
-- [ ] Live2D渲染器 — 当前仅 stub / 配置占位，未接入运行时
-- [ ] AI感知适配器 — 截屏 + 多模态LLM（未实现）
-- [ ] 文档站
+- [x] `unipet install` / `unipet doctor` / `unipet theme` — v0.1.7 收尾
+- [x] 主题市场 — ThemeMarketplace 多源聚合 + LocalMarketplaceSource
+- [x] Live2D渲染器 — SDK 接缝（Live2DSdkAdapter）+ Canvas 回落
+- [x] AI感知适配器 — 截屏 + 多模态LLM（mapActivityToState 提取为纯函数并补测试）
+- [x] 文档站骨架 — docs/ 目录，7 章节 Markdown
 
 ---
 
@@ -724,13 +724,13 @@ unipet/
 |------|--------------|----------|--------|
 | 桌面框架 | Electron (~150MB) | Electron (~150MB) | **Electron 36 (~150MB)** |
 | Agent支持 | 12种(每种单独适配) | MCP为主 | **统一适配层 + 10种适配器** |
-| AI能力 | 无 | 无 | **情感向量已实现；LLM对话/多模态感知为计划项** |
+| AI能力 | 无 | 无 | **情感向量已实现；多模态感知已实现（mapActivityToState）；LLM对话为计划项** |
 | 情感系统 | 10状态优先级 | 11反应 | **多维情感向量(PAD) + 时间衰减** |
-| 渲染方式 | SVG/GIF/APNG | 精灵表 | **可插拔(3种已实现；Live2D 为 stub/路线图)** |
-| 主题系统 | 完整但SVG-only | 精灵表only | **统一schema支持已实现渲染器；远程市场为路线图** |
-| 测试 | ~160个 | 0个 | **核心75+测试** |
+| 渲染方式 | SVG/GIF/APNG | 精灵表 | **可插拔(3种已实现；Live2D SDK 接缝已实现，Canvas 回落)** |
+| 主题系统 | 完整但SVG-only | 精灵表only | **统一schema + ThemeMarketplace 多源聚合；远程市场接口已定义** |
+| 测试 | ~160个 | 0个 | **162+ 测试** |
 | 语言 | JavaScript(CJS) | TypeScript | **TypeScript** |
-| 插件系统 | 无 | 无 | **设计提案，未实现运行时** |
+| 插件系统 | 无 | 无 | **动态插件加载 + manifest 验证已实现** |
 
 ---
 

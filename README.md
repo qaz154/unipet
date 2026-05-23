@@ -26,9 +26,9 @@ Get the latest build from [**Releases**](https://github.com/qaz154/unipet/releas
 
 | Platform | File |
 |----------|------|
-| **Windows** | `UniPet.Setup.0.1.6.exe` |
-| **macOS** | `UniPet-0.1.6-arm64.dmg` |
-| **Linux** | `UniPet-0.1.6.AppImage` |
+| **Windows** | `UniPet.Setup.0.1.7.exe` |
+| **macOS** | `UniPet-0.1.7-arm64.dmg` |
+| **Linux** | `UniPet-0.1.7.AppImage` |
 
 > macOS may show a security warning on first launch. Right-click → Open, or run:
 > ```
@@ -89,8 +89,9 @@ The pet automatically reacts when your agent starts working. No configuration ne
 | **Global Hotkeys** | `Ctrl+Shift+Y` = Allow, `Ctrl+Shift+N` = Deny |
 | **Mini Mode** | Drag to edge → pet hides with peek-on-hover |
 | **Sleep Sequence** | Yawning → dozing → sleeping after idle timeout |
-| **3 Renderers** | CSS pixel art, SVG, spritesheet — Live2D is on the roadmap |
+| **3 Renderers** | CSS pixel art, SVG, spritesheet; Live2D with SDK seam (bring-your-own SDK or canvas fallback) |
 | **Theme System** | JSON schema + variants + import/export |
+| **Theme Marketplace** | `ThemeMarketplace` aggregates local + remote sources; local-first, fault-tolerant |
 | **Sound Effects** | Chiptune-style feedback for state changes |
 | **MCP Server** | `npx @unipet/mcp` — 4 tools for any MCP agent |
 | **i18n** | English, 简体中文, 繁體中文, 日本語, 한국어 |
@@ -98,8 +99,11 @@ The pet automatically reacts when your agent starts working. No configuration ne
 | **Sessions Dashboard** | View active agent sessions, events, jump to terminal |
 | **DND Mode** | Do Not Disturb — auto-mute, suppress permission bubbles |
 | **Auto Hooks** | Hooks auto-register on app startup (best-effort) |
-| **Theme Tools** | `create-theme.mjs` scaffold + `validate-theme.mjs` checker |
+| **CLI** | `unipet install/doctor/theme/react/say` — full command surface |
+| **Theme Tools** | `create-theme.mjs` scaffold + `unipet theme validate` checker |
 | **Tier Animations** | `workingTiers` / `jugglingTiers` — animations scale with sessions |
+| **AI Perception** | Screenshot → multimodal LLM → pet state (bring-your-own API key) |
+| **Docs** | Full documentation in [docs/](docs/) |
 
 ## MCP Integration
 
@@ -171,7 +175,7 @@ pnpm start              # One-command: install + build + dev
 # Or step by step:
 pnpm install
 pnpm build
-pnpm test              # 159 tests
+pnpm test              # 162+ tests
 pnpm --filter @unipet/desktop dev  # Dev mode with hot reload
 ```
 
