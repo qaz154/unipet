@@ -21,7 +21,21 @@ export type UniPetEventChannel =
   | 'drag:ended'
   | 'throw-pet'
   | 'shortcut'
-  | 'user-idle';
+  | 'user-idle'
+  | 'system-metrics'
+  | 'mesh:event';
+
+export interface SystemMetrics {
+  cpu: number;
+  memory: number;
+  memoryFree: number;
+  memoryTotal: number;
+  battery: number | null;
+  onBattery: boolean;
+  focusedWindow: string | null;
+  focusedApp: string | null;
+  timestamp: number;
+}
 
 /** Shape of pet:event payload received by the renderer */
 export interface PetEventPayload {

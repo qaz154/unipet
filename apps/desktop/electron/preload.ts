@@ -78,7 +78,7 @@ contextBridge.exposeInMainWorld('unipet', {
       'pet:pause-toggled', 'pet:event', 'pet:mini-mode', 'pet:size-changed',
       'pet:clicked', 'pet:dnd-changed', 'settings:loaded', 'settings:changed',
       'mouse-move', 'drag:started', 'drag:ended', 'throw-pet', 'shortcut', 'user-idle',
-      'permission:resolved',
+      'permission:resolved', 'system-metrics', 'mesh:event',
     ];
     if (!allowed.includes(channel)) return;
 

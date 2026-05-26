@@ -28,6 +28,7 @@ import { createTray, updateTrayTooltip, updateTrayMenu } from './tray-menu.js';
 import type { TrayDeps } from './tray-menu.js';
 import { registerIpcHandlers } from './ipc-handlers.js';
 import type { IpcDeps } from './ipc-handlers.js';
+import { startSystemMonitor, stopSystemMonitor } from './system-monitor.js';
 
 // ESM-compatible __dirname replacement
 const dir = fileURLToPath(new URL('.', import.meta.url));
@@ -521,6 +522,11 @@ app.whenReady().then(() => {
     ctx.renderWin?.webContents.send('shortcut', 'deny');
   });
 
+  // ── System Monitor (Desktop Mirror) ──────────────────────
+  if (ctx.renderWin) {
+    startSystemMonitor(ctx.renderWin);
+  }
+
   // ── Global input capture: system idle detection ───────────
   // When the system becomes idle (user away from keyboard/mouse), send a
   // sleep signal to the renderer so the pet transitions to idle/sleeping.
@@ -598,6 +604,7 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {});
 
 app.on('before-quit', async () => {
+  stopSystemMonitor();
   if (ctx.topmostTimer) clearInterval(ctx.topmostTimer);
   globalShortcut.unregisterAll();
   saveWindowPosition();
