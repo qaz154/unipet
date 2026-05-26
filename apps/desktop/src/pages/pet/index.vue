@@ -30,6 +30,7 @@ import { useCharacterManager, buildStateFiles, type RendererRefs } from '../../c
 import { usePetEngine } from '../../composables/usePetEngine';
 import { useSystemMirror } from '../../composables/useSystemMirror';
 import { useVoice } from '../../composables/useVoice';
+import { useMeshPets } from '../../composables/useMeshPets';
 
 /** Dynamic getter — avoids stale reference after HMR or timing issues */
 const getEp = () => window.unipet;
@@ -100,6 +101,9 @@ const { bounceY, petRotation, squishX, squishY } = engine;
 
 // ── Desktop Mirror ──────────────────────────────────────
 const mirror = useSystemMirror();
+
+// ── Mesh Pets (ghost peers) ─────────────────────────────
+const meshPets = useMeshPets();
 
 const drag = usePetDrag({
   getEp,
