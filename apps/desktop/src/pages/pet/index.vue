@@ -145,7 +145,6 @@ watch(() => petStore.themeId, (id) => {
 });
 
 // ── Ghost Pet Drawing ──────────────────────────────────
-import { computed } from 'vue';
 let ghostRafId = 0;
 const ghostCount = computed(() => meshPets.ghostPets.value.length);
 function drawGhostPetsLoop() {
@@ -367,6 +366,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   engine.stopTick();
+  if (ghostRafId) cancelAnimationFrame(ghostRafId);
   if (renderers.svgRenderer) { renderers.svgRenderer.destroy(); renderers.svgRenderer = null; }
   if (renderers.cssPixelRenderer) { renderers.cssPixelRenderer.destroy(); renderers.cssPixelRenderer = null; }
   if (renderers.spriteRenderer) { renderers.spriteRenderer.destroy(); renderers.spriteRenderer = null; }
@@ -394,7 +394,7 @@ onUnmounted(() => {
     <div class="pet-shadow" />
     <!-- Ghost pets overlay (mesh peers) -->
     <canvas
-      v-if="meshPets.ghostPets.length > 0"
+      v-if="meshPets.ghostPets.value.length > 0"
       ref="ghostCanvasRef"
       class="ghost-overlay"
       :width="canvasDisplayWidth"
