@@ -92,15 +92,27 @@ export async function classifyWindows(app: ElectronApplication) {
   };
 }
 
+/** Read the auth token from the temp HOME. */
+export function readAuthToken(tempHome: string): string {
+  try {
+    return readFileSync(join(tempHome, '.unipet', 'auth-token'), 'utf-8').trim();
+  } catch {
+    return '';
+  }
+}
+
 /** POST a JSON body to the desktop app's HTTP server. */
 export async function httpPost(
   port: number,
   path: string,
   body: unknown,
+  authToken?: string,
 ): Promise<{ status: number; body: unknown }> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
   const res = await fetch(`http://127.0.0.1:${port}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(body),
   });
   const text = await res.text();

@@ -16,6 +16,7 @@ import {
   waitForDiscovery,
   classifyWindows,
   httpPost,
+  readAuthToken,
 } from './helpers';
 
 test.describe('HTTP API', () => {
@@ -35,20 +36,21 @@ test.describe('HTTP API', () => {
   });
 
   test('POST /api/state accepts allowed states and rejects disallowed ones', async () => {
-    const { app, discoveryPath } = await launchUniPet();
+    const { app, discoveryPath, tempHome } = await launchUniPet();
     try {
       const { httpPort } = await waitForDiscovery(discoveryPath);
+      const token = readAuthToken(tempHome);
 
       // Allowed
-      const ok = await httpPost(httpPort, '/api/state', { state: 'happy' });
+      const ok = await httpPost(httpPort, '/api/state', { state: 'happy' }, token);
       expect(ok.status).toBe(200);
 
       // Disallowed — `dragging` is in PET_STATES but not externally allowed
-      const blocked = await httpPost(httpPort, '/api/state', { state: 'dragging' });
+      const blocked = await httpPost(httpPort, '/api/state', { state: 'dragging' }, token);
       expect(blocked.status).toBe(400);
 
       // Garbage
-      const garbage = await httpPost(httpPort, '/api/state', { state: 'not-a-real-state' });
+      const garbage = await httpPost(httpPort, '/api/state', { state: 'not-a-real-state' }, token);
       expect(garbage.status).toBe(400);
     } finally {
       await app.close();
@@ -56,13 +58,14 @@ test.describe('HTTP API', () => {
   });
 
   test('POST /api/speech redacts secrets and URLs before forwarding', async () => {
-    const { app, discoveryPath } = await launchUniPet();
+    const { app, discoveryPath, tempHome } = await launchUniPet();
     try {
       const { httpPort } = await waitForDiscovery(discoveryPath);
+      const token = readAuthToken(tempHome);
 
       const res = await httpPost(httpPort, '/api/speech', {
         message: 'Visit https://example.com — api_key=abc123',
-      });
+      }, token);
       expect(res.status).toBe(200);
       const body = res.body as { message?: string };
       expect(body.message).toBeDefined();
@@ -75,15 +78,16 @@ test.describe('HTTP API', () => {
   });
 
   test('POST with oversized body returns 413', async () => {
-    const { app, discoveryPath } = await launchUniPet();
+    const { app, discoveryPath, tempHome } = await launchUniPet();
     try {
       const { httpPort } = await waitForDiscovery(discoveryPath);
+      const token = readAuthToken(tempHome);
 
       // MAX_BODY_SIZE is 4096; send 8KB JSON to overflow
       const bigPayload = JSON.stringify({ message: 'A'.repeat(8000) });
       const res = await fetch(`http://127.0.0.1:${httpPort}/api/speech`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: bigPayload,
       });
       expect(res.status).toBe(413);
@@ -93,9 +97,10 @@ test.describe('HTTP API', () => {
   });
 
   test('renderer receives the pet:event after /api/state', async () => {
-    const { app, discoveryPath } = await launchUniPet();
+    const { app, discoveryPath, tempHome } = await launchUniPet();
     try {
       const { httpPort } = await waitForDiscovery(discoveryPath);
+      const token = readAuthToken(tempHome);
       const { render } = await classifyWindows(app);
       await render!.waitForSelector('canvas.pet-canvas');
 
@@ -114,7 +119,7 @@ test.describe('HTTP API', () => {
 
       // Tiny race-safety wait so the listener has time to register
       await render!.waitForTimeout(150);
-      const post = await httpPost(httpPort, '/api/state', { state: 'celebrating' });
+      const post = await httpPost(httpPort, '/api/state', { state: 'celebrating' }, token);
       expect(post.status).toBe(200);
 
       const event = (await recv) as { state?: string };
