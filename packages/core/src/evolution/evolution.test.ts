@@ -43,11 +43,12 @@ describe('parseGitLog', () => {
   });
 
   it('detects night owl commits (midnight to 6am)', () => {
+    // Use UTC timestamps directly to avoid timezone-dependent test failures on CI
     const lines = [
-      '2026-05-20T02:00:00+08:00|feat: late night coding',
+      '2026-05-20T02:00:00Z|feat: late night coding',
       'src/a.ts',
       '',
-      '2026-05-20T14:00:00+08:00|feat: daytime coding',
+      '2026-05-20T14:00:00Z|feat: daytime coding',
       'src/b.ts',
     ];
     const result = parseGitLog(lines, 30);
