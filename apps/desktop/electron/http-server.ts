@@ -13,7 +13,7 @@ import { homedir } from 'os';
 import { randomBytes } from 'crypto';
 import { createRequire } from 'node:module';
 import { Notification } from 'electron';
-import { isExternallyAllowedState, sanitizeBubbleText, DEFAULT_HTTP_PORT, SPEECH_MAX_LENGTH, type MoveTarget } from '@unipet/core';
+import { isExternallyAllowedState, sanitizeBubbleText, DEFAULT_HTTP_PORT, SPEECH_MAX_LENGTH, type MoveTarget, MeshClient, type MeshConfig, type WebSocketFactory } from '@unipet/core';
 
 const MAX_PORT_RETRIES = 100;
 const MAX_BODY_SIZE = 4096;
@@ -63,6 +63,7 @@ export class PetHttpServer {
   private _retryCount = 0;
   private petWindow: Electron.BrowserWindow | undefined;
   private authToken = '';
+  private meshClient: MeshClient | null = null;
 
   get port(): number {
     return this._port;
@@ -164,6 +165,13 @@ export class PetHttpServer {
     if (route === 'GET /api/permission-result') return this.requireAuth(req, res, () => this.handlePermissionResult(req, res));
     if (route === 'GET /api/events') return this.requireAuth(req, res, () => this.handleSSE(req, res));
     if (route === 'GET /api/status') return this.handleStatus(res);
+
+    // ── Mesh routes ────────────────────────────────────────
+    if (route === 'POST /api/mesh/connect') return this.requireAuth(req, res, () => this.handleMeshConnect(req, res));
+    if (route === 'POST /api/mesh/disconnect') return this.requireAuth(req, res, () => this.handleMeshDisconnect(res));
+    if (route === 'POST /api/mesh/broadcast') return this.requireAuth(req, res, () => this.handleMeshBroadcast(req, res));
+    if (route === 'GET /api/mesh/status') return this.requireAuth(req, res, () => this.handleMeshStatus(res));
+    if (route === 'GET /api/mesh/peers') return this.requireAuth(req, res, () => this.handleMeshPeers(res));
 
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Not found' }));
@@ -433,6 +441,91 @@ export class PetHttpServer {
       sseClients: this.sseClients.length,
     }));
   }
+
+  // ── Mesh Handlers ─────────────────────────────────────────
+
+  private handleMeshConnect(req: IncomingMessage, res: ServerResponse): void {
+    this.readBody(req, res, (body) => {
+      const b = body as Record<string, unknown>;
+      const relayUrl = typeof b['relayUrl'] === 'string' ? b['relayUrl'] : 'wss://mesh.unipet.dev';
+      const room = typeof b['room'] === 'string' ? b['room'] : 'default';
+      const peerName = typeof b['peerName'] === 'string' ? b['peerName'] : 'dev';
+
+      // Disconnect existing client
+      if (this.meshClient) {
+        this.meshClient.destroy();
+        this.meshClient = null;
+      }
+
+      // WebSocket factory for Node.js
+      const wsFactory: WebSocketFactory = (url: string) => {
+        // Dynamic import to avoid bundling ws in renderer builds
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { default: WS } = require('ws') as { default: new (url: string) => import('ws').WebSocket };
+        return new WS(url) as unknown as import('@unipet/core').WebSocketLike;
+      };
+
+      const config: Partial<MeshConfig> & { wsFactory: typeof wsFactory } = {
+        relayUrl,
+        room,
+        peerName,
+        wsFactory,
+      };
+
+      this.meshClient = new MeshClient(config);
+
+      // Forward mesh events to renderer
+      this.meshClient.on((event, data) => {
+        this.petWindow?.webContents.send('mesh:event', { event, data });
+      });
+
+      this.meshClient.connect();
+
+      this.writeJson(res, 200, {
+        success: true,
+        room,
+        peerId: this.meshClient.getPeerId(),
+        relayUrl,
+      });
+    });
+  }
+
+  private handleMeshDisconnect(res: ServerResponse): void {
+    if (this.meshClient) {
+      this.meshClient.destroy();
+      this.meshClient = null;
+    }
+    this.writeJson(res, 200, { success: true });
+  }
+
+  private handleMeshBroadcast(req: IncomingMessage, res: ServerResponse): void {
+    this.readBody(req, res, (body) => {
+      const b = body as Record<string, unknown>;
+      const event = typeof b['event'] === 'string' ? b['event'] : '';
+      const message = typeof b['message'] === 'string' ? b['message'] : undefined;
+
+      if (!this.meshClient || !this.meshClient.isConnected()) {
+        this.writeJson(res, 400, { success: false, error: 'Mesh not connected' });
+        return;
+      }
+
+      this.meshClient.broadcastEvent(event as Parameters<MeshClient['broadcastEvent']>[0], message ? { message } : undefined);
+      this.writeJson(res, 200, { success: true });
+    });
+  }
+
+  private handleMeshStatus(res: ServerResponse): void {
+    const connected = this.meshClient?.isConnected() ?? false;
+    const peers = this.meshClient?.getPeers().length ?? 0;
+    this.writeJson(res, 200, { connected, peers });
+  }
+
+  private handleMeshPeers(res: ServerResponse): void {
+    const peers = this.meshClient?.getPeers() ?? [];
+    this.writeJson(res, 200, { peers });
+  }
+
+  // ── Body Reading ──────────────────────────────────────────
 
   private readBody(
     req: IncomingMessage,

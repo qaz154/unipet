@@ -50,6 +50,31 @@ export {
   type BubbleListener,
 } from './bubble-manager.js';
 
+// ─── Pet Mesh ──────────────────────────────────────────────
+
+export {
+  DEFAULT_MESH_CONFIG,
+  type MeshConfig,
+  type MeshPeer,
+  type MeshEventType,
+  type MeshClientMessage,
+  type MeshServerMessage,
+  type MeshJoin,
+  type MeshState,
+  type MeshSay,
+  type MeshCommandEvent,
+  type MeshHeartbeat,
+  type MeshPeerJoined,
+  type MeshPeerLeft,
+  type MeshRoomInfo,
+} from './mesh.js';
+
+export {
+  MeshClient,
+  type WebSocketFactory,
+  type WebSocketLike,
+} from './mesh-client.js';
+
 export {
   DEFAULT_CONFIG,
   getPublicConfig,

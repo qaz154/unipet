@@ -120,6 +120,53 @@ export function createMCPServer(config?: MCPServerConfig): McpServer {
     },
   );
 
+  // ─── Tool: unipet_mesh_connect ─────────────────────────────
+  const MESH_EVENTS = [
+    'ci_red', 'ci_green', 'milestone', 'celebrate', 'panic', 'wave', 'collaborate',
+  ] as const;
+
+  server.tool(
+    'unipet_mesh_connect',
+    'Connect this pet to a mesh room for cross-device pet social networking. Peers share state, speech, and collaborative events in real-time.',
+    {
+      relay_url: z.string().url().optional().describe('WebSocket relay URL (default: wss://mesh.unipet.dev)'),
+      room: z.string().min(1).max(64).optional().describe('Room name (project/repo name)'),
+      peer_name: z.string().min(1).max(32).optional().describe('Display name for this peer'),
+    },
+    async ({ relay_url, room, peer_name }) => {
+      const params: Record<string, string> = {};
+      if (relay_url) params.relayUrl = relay_url;
+      if (room) params.room = room;
+      if (peer_name) params.peerName = peer_name;
+      const result = await callIPC('mesh.connect', params);
+      return {
+        content: [{
+          type: 'text' as const,
+          text: result.success ? `Connected to mesh room '${params.room || 'default'}'` : `Error: ${result.error}`,
+        }],
+      };
+    },
+  );
+
+  // ─── Tool: unipet_mesh_broadcast ───────────────────────────
+  server.tool(
+    'unipet_mesh_broadcast',
+    'Broadcast a mesh event (CI status, milestone, celebration) to all peers in the current room.',
+    {
+      event: z.enum(MESH_EVENTS as unknown as [string, ...string[]]).describe('Event type'),
+      message: z.string().max(256).optional().describe('Optional message to include'),
+    },
+    async ({ event, message }) => {
+      const result = await callIPC('mesh.broadcast', { event, message });
+      return {
+        content: [{
+          type: 'text' as const,
+          text: result.success ? `Broadcast '${event}' to mesh` : `Error: ${result.error}`,
+        }],
+      };
+    },
+  );
+
   return server;
 }
 
