@@ -75,40 +75,41 @@ The pet automatically reacts when your agent starts working. No configuration ne
 | **Hermes** | Plugin (auto-install) |
 | **Any MCP agent** | MCP Server |
 
-## Features
+## Feature Status
 
-| Feature | Description |
-|---------|-------------|
-| **24 Visual States** | idle, thinking, working, editing, testing, error, happy, love, sleeping... |
-| **Multi-Agent Tracking** | Priority-based state resolution across simultaneous sessions |
-| **Permission Bubbles** | Allow/Deny/Once buttons — hook blocks until you decide |
-| **Speech Bubbles** | Agent messages with secret/URL/path sanitization |
-| **Emotion Engine** | PAD 3D emotion vector with natural time decay |
-| **Eye Tracking** | Pet eyes follow your cursor |
-| **Throw Physics** | Drag and flick the pet — rotation + bounce |
-| **Global Hotkeys** | `Ctrl+Shift+Y` = Allow, `Ctrl+Shift+N` = Deny |
-| **Mini Mode** | Drag to edge → pet hides with peek-on-hover |
-| **Sleep Sequence** | Yawning → dozing → sleeping after idle timeout |
-| **3 Renderers** | CSS pixel art, SVG, spritesheet; Live2D with SDK seam (bring-your-own SDK or canvas fallback) |
-| **Theme System** | JSON schema + variants + import/export |
-| **Theme Marketplace** | `ThemeMarketplace` aggregates local + remote sources; local-first, fault-tolerant |
-| **Sound Effects** | Chiptune-style feedback for state changes |
-| **MCP Server** | `npx @unipet/mcp` — 4 tools for any MCP agent |
-| **i18n** | English, 简体中文, 繁體中文, 日本語, 한국어 |
-| **Privacy** | `setContentProtection` hides pet from screen capture |
-| **Sessions Dashboard** | View active agent sessions, events, jump to terminal |
-| **DND Mode** | Do Not Disturb — auto-mute, suppress permission bubbles |
-| **Auto Hooks** | Hooks auto-register on app startup (best-effort) |
-| **CLI** | `unipet install/doctor/theme/react/say` — full command surface |
-| **Theme Tools** | `create-theme.mjs` scaffold + `unipet theme validate` checker |
-| **Tier Animations** | `workingTiers` / `jugglingTiers` — animations scale with sessions |
-| **AI Perception** | Screenshot → multimodal LLM → pet state (bring-your-own API key) |
-| **Pet Evolution** | Git behavior analysis → 10 evolution traits (armor, eagle vision, titan, lightning, etc.) mapped to theme variants |
-| **Emotion Soundtrack** | Web Audio API ambient music driven by PAD emotion vector (valence→tonality, arousal→tempo, dominance→volume) |
-| **Voice Companion** | Speech recognition + synthesis; wake word "Hey UniPet"; commands: status, git summary, state change, sleep/wake |
-| **Desktop Mirror** | System monitoring → pet emotions: CPU stress→panting, low battery→yawning, IDE→coding, browser→reading |
-| **Pet Mesh** | WebSocket cross-device pet social network; peer discovery, state broadcast, celebration sync, relay server |
-| **Docs** | Full documentation in [docs/](docs/) |
+| Status | Feature | Description |
+|--------|---------|-------------|
+| Stable | **24 Visual States** | idle, thinking, working, editing, testing, error, happy, love, sleeping... |
+| Stable | **Multi-Agent Tracking** | Priority-based state resolution across simultaneous sessions |
+| Stable | **Permission Bubbles** | Allow/Deny/Once buttons — hook blocks until you decide |
+| Stable | **Speech Bubbles** | Agent messages with secret/URL/path sanitization |
+| Stable | **Emotion Engine** | PAD 3D emotion vector with natural time decay |
+| Stable | **Eye Tracking** | Pet eyes follow your cursor |
+| Stable | **Throw Physics** | Drag and flick the pet — rotation + bounce |
+| Stable | **Global Hotkeys** | `Ctrl+Shift+Y` = Allow, `Ctrl+Shift+N` = Deny |
+| Stable | **Mini Mode** | Drag to edge → pet hides with peek-on-hover |
+| Stable | **Sleep Sequence** | Yawning → dozing → sleeping after idle timeout |
+| Stable | **Renderers** | CSS pixel art, SVG, spritesheet |
+| Stable | **Theme System** | JSON schema + variants + import/export |
+| Stable | **Sound Effects** | Chiptune-style feedback for state changes |
+| Stable | **MCP Server** | `npx @unipet/mcp` — 4 tools for any MCP agent |
+| Stable | **i18n** | English, 简体中文, 繁體中文, 日本語, 한국어 |
+| Stable | **Privacy** | `setContentProtection` hides pet from screen capture |
+| Stable | **Sessions Dashboard** | View active agent sessions, events, jump to terminal |
+| Stable | **DND Mode** | Do Not Disturb — auto-mute, suppress permission bubbles |
+| Stable | **Auto Hooks** | Hooks auto-register on app startup (best-effort) |
+| Stable | **CLI** | `unipet install/doctor/theme/react/say` command surface |
+| Stable | **Theme Tools** | `create-theme.mjs` scaffold + `unipet theme validate` checker |
+| Experimental | **Theme Marketplace** | Local and remote marketplace sources; remote behavior is still evolving |
+| Experimental | **Live2D SDK Seam** | Bring your own SDK adapter, otherwise uses the built-in canvas fallback |
+| Experimental | **AI Perception** | Adapter API for screenshot → multimodal LLM → pet state; requires external capture/configuration |
+| Experimental | **Pet Evolution** | Git behavior analysis mapped to theme variants |
+| Experimental | **Emotion Soundtrack** | Web Audio ambient music driven by PAD emotion vector |
+| Experimental | **Voice Companion** | Speech recognition + synthesis command surface |
+| Experimental | **Desktop Mirror** | System monitoring → pet emotions |
+| Experimental | **Pet Mesh** | WebSocket cross-device pet network with relay support |
+| Roadmap | **Plugin System** | Public plugin loading, trust model, and management UI |
+| Stable | **Docs** | Full documentation in [docs/](docs/) |
 
 ## MCP Integration
 

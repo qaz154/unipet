@@ -27,9 +27,30 @@ const VALID_MOVE_TARGETS = new Set([
   'stay', 'center', 'edge-left', 'edge-right', 'edge-top', 'edge-bottom',
   'corner-tl', 'corner-tr', 'corner-bl', 'corner-br',
 ]);
+const VALID_MESH_EVENTS = new Set(['state', 'speech', 'emotion', 'celebration', 'presence']);
+const MAX_MESH_ROOM_LENGTH = 64;
+const MAX_MESH_PEER_NAME_LENGTH = 64;
+const MAX_MESH_MESSAGE_LENGTH = 256;
 
 function isValidMoveTarget(value: string): value is MoveTarget {
   return VALID_MOVE_TARGETS.has(value);
+}
+
+function isValidMeshRelayUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (url.protocol === 'ws:' || url.protocol === 'wss:') && url.username === '' && url.password === '';
+  } catch {
+    return false;
+  }
+}
+
+function isValidMeshLabel(value: string, maxLength: number): boolean {
+  return value.length > 0 && value.length <= maxLength && /^[\w .:@-]+$/.test(value);
+}
+
+function isValidMeshEvent(value: string): value is Parameters<MeshClient['broadcastEvent']>[0] {
+  return VALID_MESH_EVENTS.has(value);
 }
 
 function generateToken(): string {
@@ -311,22 +332,29 @@ export class PetHttpServer {
   private handleNotify(req: IncomingMessage, res: ServerResponse): void {
     this.readBody(req, res, (body) => {
       const { title, message } = body as { title?: string; message?: string };
-      if (!message) {
+      if (typeof message !== 'string' || !message) {
         this.writeJson(res, 400, { error: 'Missing message field' });
         return;
       }
+
+      const sanitizedMessage = sanitizeBubbleText(message, SPEECH_MAX_LENGTH);
+      if (!sanitizedMessage) {
+        this.writeJson(res, 400, { error: 'Message empty after sanitization' });
+        return;
+      }
+
       try {
         if (Notification.isSupported()) {
           const n = new Notification({
-            title: title || 'UniPet',
-            body: String(message).slice(0, 256),
+            title: typeof title === 'string' && title ? sanitizeBubbleText(title, 80) || 'UniPet' : 'UniPet',
+            body: sanitizedMessage,
             icon: undefined,
           });
           n.show();
         }
       } catch { /* notification not available */ }
 
-      const event = { type: 'speech', source: 'hook', message: String(message).slice(0, 140), timestamp: Date.now() };
+      const event = { type: 'speech', source: 'hook', message: sanitizedMessage, timestamp: Date.now() };
       this.petWindow?.webContents.send('pet:event', event);
       this.broadcast(event);
       this.writeJson(res, 200, { success: true });
@@ -450,6 +478,19 @@ export class PetHttpServer {
       const relayUrl = typeof b['relayUrl'] === 'string' ? b['relayUrl'] : 'wss://mesh.unipet.dev';
       const room = typeof b['room'] === 'string' ? b['room'] : 'default';
       const peerName = typeof b['peerName'] === 'string' ? b['peerName'] : 'dev';
+
+      if (!isValidMeshRelayUrl(relayUrl)) {
+        this.writeJson(res, 400, { success: false, error: 'Invalid mesh relayUrl' });
+        return;
+      }
+      if (!isValidMeshLabel(room, MAX_MESH_ROOM_LENGTH)) {
+        this.writeJson(res, 400, { success: false, error: 'Invalid mesh room' });
+        return;
+      }
+      if (!isValidMeshLabel(peerName, MAX_MESH_PEER_NAME_LENGTH)) {
+        this.writeJson(res, 400, { success: false, error: 'Invalid mesh peerName' });
+        return;
+      }
 
       // Disconnect existing client
       if (this.meshClient) {

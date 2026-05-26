@@ -21,12 +21,12 @@ features:
     title: 10+ Agents
     details: Claude Code, Codex, Cursor, Gemini, Copilot, Kiro, Kimi, OpenCode, OpenClaw, Hermes and any MCP-compatible agent.
   - icon: 🎨
-    title: Pluggable Renderers
-    details: CSS pixel art, SVG, spritesheet — Live2D with SDK seam. Bring your own SDK or use the built-in canvas fallback.
+    title: Stable Renderers
+    details: CSS pixel art, SVG, and spritesheet renderers are stable. Live2D is an experimental SDK seam with a canvas fallback.
   - icon: 🧠
     title: Emotion Engine
-    details: PAD 3D emotion vector with natural time decay. The pet actually feels things.
+    details: PAD 3D emotion vector with natural time decay, plus experimental soundtrack and perception integrations.
   - icon: 🎯
-    title: Theme Marketplace
-    details: JSON schema + multi-source marketplace. Local-first, fault-tolerant remote sources.
+    title: Clear Feature Status
+    details: Core desktop, hooks, HTTP, MCP, themes, and renderers are stable; marketplace, mesh, voice, perception, and plugins are experimental or roadmap items.
 ---
