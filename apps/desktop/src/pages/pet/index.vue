@@ -28,6 +28,8 @@ import { usePetSize } from '../../composables/usePetSize';
 import { usePetDrag } from '../../composables/usePetDrag';
 import { useCharacterManager, buildStateFiles, type RendererRefs } from '../../composables/useCharacterManager';
 import { usePetEngine } from '../../composables/usePetEngine';
+import { useSystemMirror } from '../../composables/useSystemMirror';
+import { useVoice } from '../../composables/useVoice';
 
 /** Dynamic getter — avoids stale reference after HMR or timing issues */
 const getEp = () => window.unipet;
@@ -96,6 +98,9 @@ const engine = usePetEngine({
 
 const { bounceY, petRotation, squishX, squishY } = engine;
 
+// ── Desktop Mirror ──────────────────────────────────────
+const mirror = useSystemMirror();
+
 const drag = usePetDrag({
   getEp,
   onMouseMove: (x: number, y: number) => {
@@ -139,6 +144,7 @@ let coreBus: EventBus | null = null;
 let stateManager: StateManager | null = null;
 let emotionEngine: EmotionEngine | null = null;
 let bubbleManager: BubbleManager | null = null;
+let voiceDestroy: (() => void) | null = null;
 const demoTimers: ReturnType<typeof setTimeout>[] = [];
 
 onMounted(async () => {
@@ -248,6 +254,27 @@ onMounted(async () => {
       // to cancel any deep-sleep drift (StateManager will handle the transition).
       engine.updateSession('system', idle ? 'idle' : 'idle', 'system');
     });
+    ep.on('system-metrics', (metrics: unknown) => {
+      // Desktop Mirror: receive CPU/memory/battery/focus metrics and update
+      // the system mirror composable, which drives visual modifiers and
+      // state overrides.
+      mirror.update(metrics as import('../../types/unipet').SystemMetrics);
+
+      // Apply state override from mirror (e.g. CPU stress → working, low battery → sleeping)
+      const override = mirror.stateOverride.value;
+      if (override) {
+        engine.updateSession('system-mirror', override, 'system-mirror');
+      }
+
+      // Show status bubble if there's something notable
+      const status = mirror.statusText.value;
+      if (status) {
+        showBubble(status);
+      }
+
+      // Emit sweat particles when CPU is stressed
+      particleSystem.emit('working', { sweat: mirror.shouldSweat.value });
+    });
   }
 
   coreBus = new EventBus();
@@ -279,6 +306,26 @@ onMounted(async () => {
   bubbleManager.onBubble((b) => showBubble(b.text));
   emotionEngine.start();
 
+  // ── Voice Companion + Emotion Music ──────────────────
+  try {
+    const voiceResult = useVoice({
+      voiceEnabled: toRef(settingsStore, 'voiceEnabled'),
+      voiceLanguage: toRef(settingsStore, 'voiceLanguage'),
+      emotionMusic: toRef(settingsStore, 'emotionMusic'),
+      updateSession: (sessionId, state, source) => {
+        engine.updateSession(sessionId, state as PetState, source);
+      },
+      showBubble,
+      getEmotion: () => {
+        if (emotionEngine) return emotionEngine.emotion;
+        return { valence: 0, arousal: 0, dominance: 0 };
+      },
+    });
+    voiceDestroy = voiceResult.destroy;
+  } catch (err) {
+    console.warn('[UniPet] Voice companion init failed:', err);
+  }
+
   try {
     const result = await startEnabledAdapters(coreBus, settingsStore.enabledAdapters);
     if (result.failed.length > 0) {
@@ -303,6 +350,7 @@ onUnmounted(() => {
   bubble.destroy();
   emotionEngine?.stop();
   stateManager?.reset();
+  voiceDestroy?.();
   stopAllAdapters().catch(() => { /* ignore */ });
   coreBus?.clear?.();
   for (const tm of demoTimers) clearTimeout(tm);

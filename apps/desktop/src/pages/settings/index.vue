@@ -264,8 +264,8 @@ watch(resolvedMode, () => { resetTimestamp(); });
         <section v-if="activeTab === 'behavior' || anyMatchAcrossTabs" v-show="isTabVisible('behavior')" class="tab-content">
           <h1 v-if="activeTab === 'behavior'">{{ t('settings.behavior') }}</h1>
 
-          <div v-if="behaviorRows.clickReactions || behaviorRows.drag || behaviorRows.sound || behaviorRows.hideBubbles" class="section-title">{{ t('settings.interaction') }}</div>
-          <div v-if="behaviorRows.clickReactions || behaviorRows.drag || behaviorRows.sound || behaviorRows.hideBubbles" class="card">
+          <div v-if="behaviorRows.clickReactions || behaviorRows.drag || behaviorRows.sound || behaviorRows.hideBubbles || behaviorRows.voiceCompanion || behaviorRows.emotionMusic" class="section-title">{{ t('settings.interaction') }}</div>
+          <div v-if="behaviorRows.clickReactions || behaviorRows.drag || behaviorRows.sound || behaviorRows.hideBubbles || behaviorRows.voiceCompanion || behaviorRows.emotionMusic" class="card">
             <div v-if="behaviorRows.clickReactions" class="row">
               <div class="row-text">
                 <span class="row-label">{{ t('settings.clickReactions') }}</span>
@@ -300,6 +300,24 @@ watch(resolvedMode, () => { resetTimestamp(); });
               </div>
               <div class="row-control">
                 <button :class="['switch', { on: settingsStore.hideBubbles }]" @click="settingsStore.hideBubbles = !settingsStore.hideBubbles"><span class="switch-knob" /></button>
+              </div>
+            </div>
+            <div v-if="behaviorRows.voiceCompanion" class="row">
+              <div class="row-text">
+                <span class="row-label">{{ t('settings.voiceCompanion') }}</span>
+                <span class="row-desc">{{ t('settings.voiceCompanionDesc') }}</span>
+              </div>
+              <div class="row-control">
+                <button :class="['switch', { on: settingsStore.voiceEnabled }]" @click="settingsStore.voiceEnabled = !settingsStore.voiceEnabled"><span class="switch-knob" /></button>
+              </div>
+            </div>
+            <div v-if="behaviorRows.emotionMusic" class="row">
+              <div class="row-text">
+                <span class="row-label">{{ t('settings.emotionMusic') }}</span>
+                <span class="row-desc">{{ t('settings.emotionMusicDesc') }}</span>
+              </div>
+              <div class="row-control">
+                <button :class="['switch', { on: settingsStore.emotionMusic }]" @click="settingsStore.emotionMusic = !settingsStore.emotionMusic"><span class="switch-knob" /></button>
               </div>
             </div>
           </div>

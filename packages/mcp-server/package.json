@@ -31,11 +31,13 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
     "@unipet/core": "workspace:*",
+    "ws": "^8.18.0",
     "zod": "^4.0.0"
   },
   "devDependencies": {
     "typescript": "^6.0.3",
     "vitest": "^4.0.0",
-    "@types/node": "^25.0.0"
+    "@types/node": "^25.0.0",
+    "@types/ws": "^8.5.13"
   }
 }

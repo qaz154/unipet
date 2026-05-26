@@ -23,6 +23,9 @@ export const useSettingsStore = defineStore('settings', () => {
   const colorMode = ref<'auto' | 'light' | 'dark'>('dark');
   const sidebarCollapsed = ref(false);
   const enabledAdapters = ref<string[]>([]);
+  const voiceEnabled = ref(false);
+  const voiceLanguage = ref('en-US');
+  const emotionMusic = ref(false);
 
   const settingDefs: SettingDef[] = [
     { ref: alwaysOnTop, key: 'alwaysOnTop', sideEffect: (v) => getEp()?.setAlwaysOnTop(v as boolean) },
@@ -37,6 +40,9 @@ export const useSettingsStore = defineStore('settings', () => {
     { ref: screenPrivacy, key: 'screenPrivacy', sideEffect: (v) => getEp()?.setContentProtection?.(v as boolean) },
     { ref: colorMode, key: 'colorMode' },
     { ref: sidebarCollapsed, key: 'sidebarCollapsed' },
+    { ref: voiceEnabled, key: 'voiceEnabled' },
+    { ref: voiceLanguage, key: 'voiceLanguage' },
+    { ref: emotionMusic, key: 'emotionMusic' },
   ];
 
   const settingsByKey = new Map(settingDefs.map(d => [d.key, d]));
@@ -85,7 +91,7 @@ export const useSettingsStore = defineStore('settings', () => {
   return {
     alwaysOnTop, clickThrough, edgeSnapping, sleepSequence, idleTimeoutMs,
     clickReactions, dragEnabled, soundEnabled, hideBubbles, screenPrivacy,
-    colorMode, sidebarCollapsed, enabledAdapters,
+    colorMode, sidebarCollapsed, enabledAdapters, voiceEnabled, voiceLanguage, emotionMusic,
     loadPersisted,
   };
 });

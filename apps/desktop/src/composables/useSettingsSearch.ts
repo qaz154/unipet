@@ -67,6 +67,8 @@ export function useSettingsSearch(deps: UseSettingsSearchDeps): UseSettingsSearc
     sleepSeq: matchesSearch(t('settings.sleepSequence'), 'sleep'),
     idleTimeout: matchesSearch(t('settings.idleTimeout'), t('settings.idleTimeoutDesc')),
     hideBubbles: matchesSearch('Hide bubbles', '隐藏气泡', 'bubble'),
+    voiceCompanion: matchesSearch(t('settings.voiceCompanion'), t('settings.voiceCompanionDesc'), 'voice', 'speech'),
+    emotionMusic: matchesSearch(t('settings.emotionMusic'), t('settings.emotionMusicDesc'), 'emotion', 'music'),
   }));
 
   // ─── Tab visibility ────────────────────────────────────
