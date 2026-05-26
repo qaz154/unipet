@@ -103,7 +103,7 @@ export function parseGitLog(lines: string[], days: number): CodingPatterns {
   const refactorCommits = commits.filter((c) => REFACTOR_PATTERN.test(c.message));
   const refactorRatio = refactorCommits.length / totalCommits;
 
-  const hours = commits.map((c) => c.date.getHours());
+  const hours = commits.map((c) => c.date.getUTCHours());
   const nightCommits = hours.filter((h) => h >= 0 && h < 6);
   const nightOwlRatio = nightCommits.length / totalCommits;
 

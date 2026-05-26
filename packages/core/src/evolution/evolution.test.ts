@@ -42,8 +42,8 @@ describe('parseGitLog', () => {
     expect(result.refactorRatio).toBe(0.5);
   });
 
-  it('detects night owl commits (midnight to 6am)', () => {
-    // Use UTC timestamps directly to avoid timezone-dependent test failures on CI
+  it('detects night owl commits (midnight to 6am UTC)', () => {
+    // Analyzer uses getUTCHours(), so test with UTC timestamps
     const lines = [
       '2026-05-20T02:00:00Z|feat: late night coding',
       'src/a.ts',
