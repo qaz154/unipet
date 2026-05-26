@@ -26,9 +26,9 @@ Get the latest build from [**Releases**](https://github.com/qaz154/unipet/releas
 
 | Platform | File |
 |----------|------|
-| **Windows** | `UniPet.Setup.0.1.8.exe` |
-| **macOS** | `UniPet-0.1.8-arm64.dmg` |
-| **Linux** | `UniPet-0.1.8.AppImage` |
+| **Windows** | `UniPet.Setup.0.1.9.exe` |
+| **macOS** | `UniPet-0.1.9-arm64.dmg` |
+| **Linux** | `UniPet-0.1.9.AppImage` |
 
 > macOS may show a security warning on first launch. Right-click → Open, or run:
 > ```

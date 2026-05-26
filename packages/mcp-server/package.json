@@ -1,6 +1,6 @@
 {
   "name": "@unipet/mcp-server",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "MCP server for UniPet — control your desktop pet from any MCP-capable AI agent",
   "type": "module",
   "license": "MIT",
