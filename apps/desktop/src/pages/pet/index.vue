@@ -11,7 +11,7 @@
  * - Sound effects with per-source cooldown
  */
 
-import { ref, onMounted, onUnmounted, watch, nextTick, toRef } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick, toRef } from 'vue';
 import { EventBus, StateManager, EmotionEngine, BubbleManager } from '@unipet/core';
 import type { PetState } from '@unipet/core';
 import { SVGRenderer, CSSPixelRenderer, SpriteRenderer, Live2DRenderer } from '@unipet/renderers';
@@ -39,6 +39,7 @@ const { t, loadLocale } = useI18n();
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const canvasWrapRef = ref<HTMLDivElement | null>(null);
 const svgContainerRef = ref<HTMLDivElement | null>(null);
+const ghostCanvasRef = ref<HTMLCanvasElement | null>(null);
 
 // ── Render Mode ──────────────────────────────────────
 const themeLoader = useTheme();
@@ -141,6 +142,25 @@ watch(() => petStore.opacity, applyScaleOpacity);
 watch(() => petStore.themeId, (id) => {
   const idx = allCharacters.value.findIndex(c => c.id === id);
   if (idx >= 0) charIndex.value = idx;
+});
+
+// ── Ghost Pet Drawing ──────────────────────────────────
+import { computed } from 'vue';
+let ghostRafId = 0;
+const ghostCount = computed(() => meshPets.ghostPets.value.length);
+function drawGhostPetsLoop() {
+  const canvas = ghostCanvasRef.value;
+  if (!canvas) { ghostRafId = requestAnimationFrame(drawGhostPetsLoop); return; }
+  const ctx = canvas.getContext('2d');
+  if (!ctx) { ghostRafId = requestAnimationFrame(drawGhostPetsLoop); return; }
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  meshPets.drawGhosts(ctx, canvas.width, canvas.height);
+  ghostRafId = requestAnimationFrame(drawGhostPetsLoop);
+}
+watch(ghostCount, () => {
+  if (ghostCount.value > 0 && !ghostRafId) {
+    ghostRafId = requestAnimationFrame(drawGhostPetsLoop);
+  }
 });
 
 // ── Lifecycle ────────────────────────────────────────
@@ -372,6 +392,15 @@ onUnmounted(() => {
        @pointermove="onDragMove"
        @pointerup="onDragEnd">
     <div class="pet-shadow" />
+    <!-- Ghost pets overlay (mesh peers) -->
+    <canvas
+      v-if="meshPets.ghostPets.length > 0"
+      ref="ghostCanvasRef"
+      class="ghost-overlay"
+      :width="canvasDisplayWidth"
+      :height="canvasDisplayHeight"
+      :style="{ width: canvasDisplayWidth + 'px', height: canvasDisplayHeight + 'px' }"
+    />
     <!-- SVG renderer container (when theme.renderer === 'svg') -->
     <div
       v-if="renderMode === 'svg'"
@@ -468,6 +497,14 @@ onUnmounted(() => {
   /* Fill the 108×144 canvas-wrap container */
   width: 100%;
   height: 100%;
+
+.ghost-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 3;
+}
 }
 
 .speech-bubble {
