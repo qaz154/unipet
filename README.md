@@ -113,18 +113,20 @@ The pet automatically reacts when your agent starts working. No configuration ne
 
 ## MCP Integration
 
-Any MCP-capable agent can control the pet:
+Any MCP-capable agent can control the pet via the local MCP server:
 
 ```json
 {
   "mcpServers": {
     "unipet": {
-      "command": "npx",
-      "args": ["-y", "@unipet/mcp"]
+      "command": "node",
+      "args": ["packages/mcp-server/dist/index.js"]
     }
   }
 }
 ```
+
+> **Note:** The `@unipet/mcp` npm package has not been published yet. The MCP server is available locally via the monorepo. npm publishing is planned for a future release.
 
 Available tools: `unipet_status`, `unipet_react`, `unipet_say`, `unipet_move`
 

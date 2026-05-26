@@ -113,18 +113,20 @@ node hooks/install-hooks.js --agent cursor
 
 ## MCP 集成
 
-任何兼容 MCP 的智能体都可以控制宠物：
+任何兼容 MCP 的智能体都可以通过本地 MCP 服务器控制宠物：
 
 ```json
 {
   "mcpServers": {
     "unipet": {
-      "command": "npx",
-      "args": ["-y", "@unipet/mcp"]
+      "command": "node",
+      "args": ["packages/mcp-server/dist/index.js"]
     }
   }
 }
 ```
+
+> **注意：** `@unipet/mcp` npm 包尚未发布。MCP 服务器目前通过 monorepo 本地可用。npm 发布计划在未来版本中进行。
 
 可用工具：`unipet_status`、`unipet_react`、`unipet_say`、`unipet_move`
 
