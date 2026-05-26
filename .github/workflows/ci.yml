@@ -29,5 +29,6 @@ jobs:
         with: { node-version: 22 }
       - run: corepack enable && corepack prepare pnpm@10 --activate
       - run: pnpm install --frozen-lockfile
+      - run: pnpm build
       - run: pnpm --filter @unipet/desktop build:electron
       - run: pnpm --filter @unipet/desktop test:e2e:fast
