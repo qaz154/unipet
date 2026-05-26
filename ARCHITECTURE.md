@@ -4,76 +4,7 @@
 
 ---
 
-## 一、现有项目深度对比分析
-
-### 1.1 六大项目优缺点矩阵
-
-| 维度 | clawd-on-desk (2356★) | openpets (283★) | Agentic-Desktop-Pet (278★) | qq-slime-pet | BongoCat (20800★) | yuns-desktop-pet |
-|------|----------------------|-----------------|---------------------------|--------------|-------------------|------------------|
-| **桌面框架** | Electron | Electron | Godot 4 | Electron | Tauri 2 + Vue 3 | Electron |
-| **渲染方式** | SVG/GIF/APNG | Spritesheet | Godot Canvas | CSS Canvas像素 | PixiJS + Live2D | Electron + Live2D |
-| **Agent接入** | HTTP Hooks (12种) | MCP协议 | HTTP API | 多模态截屏 | 无 | MCP工具调用 |
-| **AI能力** | 无(纯状态监听) | 无(纯状态监听) | LLM对话+工具调用 | 多模态感知 | 无 | 多模型对话 |
-| **记忆系统** | 无 | 无 | 无(仅内存列表) | 无 | 无 | 无 |
-| **情感系统** | 基础(10状态优先级) | 基础(11反应) | 无(仅声明) | 10种CSS动画状态 | 无 | 无 |
-| **主题/皮肤** | 完整(schema+变体+覆盖) | 宠物包(.json+精灵表) | Godot .pck包 | CSS像素网格 | Live2D模型 | Live2D |
-| **透明窗口** | Electron BrowserWindow | Electron transparent | Godot mouse_passthrough | setContentProtection | 平台特定插件 | Electron |
-| **测试覆盖** | ~160个测试文件 | 零测试 | 零测试 | 零测试 | 零测试 | 零测试 |
-| **代码质量** | 高(但文件过大) | 中(巨文件问题) | 低(早期原型) | 高(架构清晰) | 高(跨平台优秀) | 中 |
-| **包大小** | ~150MB(Electron) | ~150MB(Electron) | ~50MB(Godot) | ~150MB(Electron) | ~5MB(Tauri) | ~150MB(Electron) |
-
-### 1.2 各项目核心优势（值得集成的）
-
-#### clawd-on-desk — 状态机与主题系统
-- **优先级状态机**: error(8) > notification(7) > sweeping(6) > attention(5) > juggling(4) > working(3) > thinking(2) > idle(1) > sleeping(0)
-- **多会话状态解析**: 跨多个agent会话的dominant state resolution
-- **睡眠序列**: yawning → dozing → collapsing → sleeping (可配置)
-- **主题schema**: 完整的JSON schema验证 + 变体补丁 + 用户覆盖 + fallback链
-- **SVG安全净化**: 移除script/event handler/javascript: URL
-- **工厂函数依赖注入**: `initXxx(ctx)` 模式，测试友好
-- **原子配置写入**: write-to-temp + rename 防崩溃损坏
-
-#### openpets — MCP协议与租赁系统
-- **MCP Server设计**: 3个工具(status/react/say)，Zod schema验证
-- **租赁系统**: TTL + heartbeat，agent进程崩溃自动清理
-- **消息净化**: 正则拒绝代码、URL、文件路径、密钥泄露
-- **IPC安全**: token认证 + 0o600权限 + 路径遍历防护
-- **包分离**: @open-pets/client, @open-pets/mcp, @open-pets/claude 独立发布
-
-#### Agentic-Desktop-Pet — Agent工具框架
-- **Toolkit自省**: 从Python函数签名+docstring自动生成OpenAI function schema
-- **工具过滤**: `select_tools(include, exclude)` 用于子agent工具作用域
-- **SSE流式**: FastAPI → Godot 全链路流式传输
-- **主题/mod系统**: Godot .pck资源包运行时加载
-
-#### qq-slime-pet — 渲染引擎与隐私设计
-- **逐行像素变形**: 每行独立正弦函数偏移，创造"果冻"效果
-- **零外部素材**: 16x16字符网格 + 8色调色板，纯代码绘制
-- **setContentProtection**: 宠物对截屏软件不可见（OS级隐私）
-- **协议适配器策略模式**: 统一 `send()` 接口，3种AI后端
-- **三层移动系统**: AI驱动语义定位 + 自主边缘巡逻 + 离屏窥视夹紧
-- **三阶段JSON解析fallback**: parse → regex extract → raw text
-
-#### BongoCat — 跨平台窗口管理
-- **NSPanel转换**: macOS nonactivating_panel + Dock level + 跨Space跟随
-- **Windows TOPMOST轮询**: SetWindowPos 16ms循环（虽hack但有效）
-- **rdev全局输入**: OS级键盘/鼠标钩子，任何应用都能响应
-- **指数阻尼光标平滑**: `alpha = 1 - 0.75^(deltaMS/16.67)`
-- **Tauri插件抽象**: 一个插件3个平台实现，统一命令接口
-
-### 1.3 各项目核心缺陷（需要避免的）
-
-| 项目 | 关键缺陷 |
-|------|---------|
-| clawd-on-desk | 无TypeScript；main.js 1800行；CommonJS；无AI能力 |
-| openpets | windows.ts 98KB；preload.cjs 60KB；精灵表布局硬编码；零测试 |
-| Agentic-Desktop-Pet | README与代码严重不符；内存无界追加；单全局agent实例；零测试 |
-| qq-slime-pet | postJson重复3次；无对话历史；单显示器限制；无流式 |
-| BongoCat | CSP禁用；权限过度；Windows轮询hack；游戏手柄紧密循环 |
-
----
-
-## 二、UniPet 框架设计
+## 一、框架设计
 
 > **实现状态说明（2026-05）**: 本文混合记录了已实现架构和后续设计。当前可验证实现以 Electron + Vue + Canvas/CSS 像素渲染、HTTP API、MCP 包、主题 schema、状态/情感/气泡核心为主；Live2D 渲染器仅保留类型/配置占位，AI Perception 未实现，Plugin System 是设计提案，主题市场仍在路线图中。Windows 路径已有 E2E 覆盖；macOS/Linux 构建产物会发布，但透明窗口/打包运行仍需真实平台验证。
 
@@ -130,19 +61,17 @@
 
 #### 模块 1: Unified Event Bus (统一事件总线)
 
-从 clawd-on-desk 的状态机 + openpets 的反应系统 + qq-slime-pet 的AI驱动 合并而来。
-
 ```typescript
 // packages/core/src/events.ts
 
 /** 所有可能的宠物状态 — 唯一真相来源 */
 export const PET_STATES = [
-  // 基础状态 (来自 clawd-on-desk)
+  // 基础状态
   'sleeping', 'idle', 'thinking', 'working', 'juggling',
   'attention', 'sweeping', 'notification', 'error',
-  // Agent交互状态 (来自 openpets)
+  // Agent交互状态
   'waving', 'editing', 'testing', 'waiting', 'celebrating',
-  // AI感知状态 (来自 qq-slime-pet)
+  // 感知状态
   'walking', 'crawling', 'shocked', 'happy', 'angry', 'love',
   // 功能状态
   'dragging', 'peeking', 'talking',
@@ -176,7 +105,7 @@ export interface PetEvent {
   timestamp: number;
 }
 
-/** 情感向量 — 多维情感模型 (借鉴 Agentic-Desktop-Pet 设计) */
+/** 情感向量 — PAD 三维情感模型 */
 export interface EmotionVector {
   valence: number;    // -1 (消极) to +1 (积极)
   arousal: number;    // 0 (平静) to 1 (兴奋)
@@ -191,8 +120,6 @@ export type MoveTarget =
 ```
 
 #### 模块 2: Agent Adapter Layer (Agent适配层)
-
-融合 clawd-on-desk 的多agent注册 + openpets 的MCP协议 + qq-slime-pet 的多模态感知。
 
 ```typescript
 // packages/core/src/adapters/adapter.ts
@@ -248,22 +175,20 @@ export interface AdapterContext {
 
 **内置适配器:**
 
-| 适配器 | 来源 | 接入方式 |
-|--------|------|---------|
-| `ClaudeCodeAdapter` | clawd-on-desk | Command hooks + HTTP blocking hooks |
-| `CodexAdapter` | clawd-on-desk | Official hooks + JSONL polling |
-| `CursorAdapter` | clawd-on-desk | Cursor hooks.json |
-| `GeminiAdapter` | clawd-on-desk | Gemini settings.json hooks |
-| `CopilotAdapter` | clawd-on-desk | Copilot hooks.json |
-| `MCPAdapter` | openpets | MCP Server (stdio transport) |
-| `HTTPAdapter` | Agentic-Desktop-Pet | REST API + SSE |
-| `AIPerceptionAdapter` | qq-slime-pet | 定时截屏 + 多模态LLM（计划项，未实现） |
-| `GitAdapter` | 新设计 | Git状态监听(push/merge/conflict) |
-| `CustomAdapter` | 新设计 | 用户自定义webhook/脚本 |
+| 适配器 | 接入方式 |
+|--------|---------|
+| `ClaudeCodeAdapter` | Command hooks + HTTP blocking hooks |
+| `CodexAdapter` | Official hooks + JSONL polling |
+| `CursorAdapter` | Cursor hooks.json |
+| `GeminiAdapter` | Gemini settings.json hooks |
+| `CopilotAdapter` | Copilot hooks.json |
+| `MCPAdapter` | MCP Server (stdio transport) |
+| `HTTPAdapter` | REST API + SSE |
+| `AIPerceptionAdapter` | 定时截屏 + 多模态LLM |
+| `GitAdapter` | Git状态监听(push/merge/conflict) |
+| `CustomAdapter` | 用户自定义webhook/脚本 |
 
 #### 模块 3: Rendering Engine (渲染引擎)
-
-融合 BongoCat 的跨平台窗口 + qq-slime-pet 的像素渲染 + clawd-on-desk 的SVG系统。
 
 ```typescript
 // packages/core/src/renderer/renderer.ts
@@ -294,16 +219,14 @@ export interface RendererPlugin {
 
 /** 内置渲染器 */
 export const BUILTIN_RENDERERS = {
-  'css-pixel': CSSPixelRenderer,     // qq-slime-pet 的逐行像素变形
-  'svg': SVGRenderer,                // clawd-on-desk 的SVG/GIF/APNG
-  'spritesheet': SpriteRenderer,     // openpets 的精灵表动画
-  'live2d': Live2DRenderer,          // 计划项：当前仅 stub / 配置占位，未接入 PixiJS/Live2D 运行时
+  'css-pixel': CSSPixelRenderer,     // 16x16 Canvas 像素渲染 + 逐行变形
+  'svg': SVGRenderer,                // SVG 文件交换 + 眼神追踪
+  'spritesheet': SpriteRenderer,     // 精灵表帧动画
+  'live2d': Live2DRenderer,          // SDK 接缝 + Canvas 回落
 } as const;
 ```
 
 #### 模块 4: Theme System (主题系统)
-
-融合 clawd-on-desk 的完整schema + openpets 的宠物包格式。
 
 ```typescript
 // packages/core/src/theme/theme-schema.ts
@@ -342,7 +265,7 @@ export interface ThemeDefinition {
   idleAnimations?: string[];
 }
 
-/** CSS像素渲染器配置 (来自 qq-slime-pet) */
+/** CSS像素渲染器配置 */
 export interface CSSPixelConfig {
   gridSize: number;          // 16 (16x16像素网格)
   upscale: number;           // 8 (放大倍数)
@@ -352,7 +275,7 @@ export interface CSSPixelConfig {
   wiggleProfiles: Record<string, WiggleProfile>;
 }
 
-/** 精灵表渲染器配置 (来自 openpets) */
+/** 精灵表渲染器配置 */
 export interface SpriteConfig {
   spritesheet: string;       // 图片文件名
   frameWidth: number;
@@ -362,7 +285,7 @@ export interface SpriteConfig {
   frameRate?: number;
 }
 
-/** SVG渲染器配置 (来自 clawd-on-desk) */
+/** SVG渲染器配置 */
 export interface SVGConfig {
   viewBox: string;
   rendering: 'auto' | 'object';
@@ -370,7 +293,7 @@ export interface SVGConfig {
   trustedRuntime?: boolean;
 }
 
-/** Live2D渲染器配置 (来自 BongoCat) */
+/** Live2D渲染器配置 */
 export interface Live2DConfig {
   modelFile: string;         // .moc3 文件
   modelConfig: string;       // .model3.json 文件
@@ -379,8 +302,6 @@ export interface Live2DConfig {
 ```
 
 #### 模块 5: Emotion Engine (情感引擎)
-
-融合 clawd-on-desk 的状态优先级 + qq-slime-pet 的动画驱动 + 新设计的情感向量。
 
 ```typescript
 // packages/core/src/emotion/emotion.ts
@@ -392,7 +313,7 @@ export class EmotionEngine {
   /** 接收事件并更新情感状态 */
   processEvent(event: PetEvent): EmotionVector {
     if (event.emotion) {
-      // 外部提供的情感向量（来自AI感知或MCP）
+      // 外部提供的情感向量
       this.blend(event.emotion, 0.6);
     } else if (event.state) {
       // 从状态推断情感
@@ -565,15 +486,17 @@ export interface PluginContext {
 
 | 层 | 选择 | 来源 | 理由 |
 |----|------|------|------|
-| **桌面框架** | Electron 36 | clawd-on-desk | ~150MB包大小，成熟生态，透明窗口+系统托盘 |
-| **前端框架** | Vue 3 + TypeScript | BongoCat | 组合式API适合桌面宠物，类型安全 |
-| **状态管理** | 自定义优先级状态机 | clawd-on-desk | 24状态优先级解析，多会话支持 |
-| **渲染引擎** | 可插拔 | 综合 | CSS-Pixel + SVG + Sprite（Live2D 为 stub/路线图） |
-| **动画库** | Canvas 2D + CSS | qq-slime-pet + BongoCat | 高性能像素渲染 + SVG/CSS过渡 |
-| **MCP实现** | @modelcontextprotocol/sdk | openpets | 官方SDK，标准协议 |
-| **配置存储** | 原子JSON文件写入 | clawd-on-desk | write-to-temp + rename 防崩溃 |
-| **构建** | pnpm workspaces + Turborepo | openpets | monorepo管理 |
-| **测试** | Vitest + Playwright | 新选择 | 快速单元测试 + E2E |
+| 技术 | 选型 | 说明 |
+|------|------|------|
+| **桌面框架** | Electron 42 | ~150MB包大小，成熟生态，透明窗口+系统托盘 |
+| **前端框架** | Vue 3 + TypeScript | 组合式API适合桌面宠物，类型安全 |
+| **状态管理** | 自定义优先级状态机 | 24状态优先级解析，多会话支持 |
+| **渲染引擎** | 可插拔 | CSS-Pixel + SVG + Sprite + Live2D（SDK 接缝） |
+| **动画库** | Canvas 2D + CSS | 高性能像素渲染 + SVG/CSS过渡 |
+| **MCP实现** | @modelcontextprotocol/sdk | 官方SDK，标准协议 |
+| **配置存储** | 原子JSON文件写入 | write-to-temp + rename 防崩溃 |
+| **构建** | pnpm workspaces + Turborepo | monorepo管理 |
+| **测试** | Vitest + Playwright | 快速单元测试 + E2E |
 
 ### 3.2 Monorepo结构
 
@@ -676,21 +599,21 @@ unipet/
 ### Phase 1: 核心骨架 ✅ 已完成
 - [x] Monorepo搭建 (pnpm + Turborepo + tsconfig)
 - [x] `@unipet/core` — PetEvent, EventBus, StateManager
-- [x] `@unipet/renderers/css-pixel` — 移植 qq-slime-pet 的渲染引擎
+- [x] `@unipet/renderers/css-pixel` — 16x16 Canvas 像素渲染引擎
 - [x] Electron 桌面应用骨架 — 透明窗口 + 系统托盘
 - [x] 基础状态机 — idle/thinking/working/error/sleeping
 
 ### Phase 2: Agent接入 ✅ 已完成
 - [x] `@unipet/adapters` — 适配器接口 + 注册中心
-- [x] Claude Code 适配器 — 移植 clawd-on-desk 的hooks
-- [x] MCP Server 适配器 — 移植 openpets 的MCP server
-- [x] HTTP/SSE 适配器 — 移植 Agentic-Desktop-Pet 的API
+- [x] Claude Code 适配器 — hooks 接入
+- [x] MCP Server 适配器 — MCP 协议接入
+- [x] HTTP/SSE 适配器 — REST API + SSE
 - [x] `@unipet/mcp-server` — 独立MCP server包
 
 ### Phase 3: 主题与渲染 ✅ 已完成
 - [x] `@unipet/themes` — 主题schema + 加载器 + 验证
-- [x] SVG渲染器 — 移植 clawd-on-desk 的SVG系统
-- [x] Spritesheet渲染器 — 移植 openpets 的精灵表
+- [x] SVG渲染器 — SVG 文件交换 + 眼神追踪
+- [x] Spritesheet渲染器 — 精灵表帧动画
 - [x] 主题变体 + 用户覆盖系统
 - [x] SVG安全净化器
 
@@ -725,21 +648,21 @@ unipet/
 
 ---
 
-## 五、与现有项目的差异化
+## 五、架构特性总览
 
-| 维度 | clawd-on-desk | openpets | UniPet |
-|------|--------------|----------|--------|
-| 桌面框架 | Electron (~150MB) | Electron (~150MB) | **Electron 42 (~150MB)** |
-| Agent支持 | 12种(每种单独适配) | MCP为主 | **统一适配层 + 12种适配器** |
-| AI能力 | 无 | 无 | **情感向量 + 多模态感知 + 语音伴侣 + 进化系统** |
-| 情感系统 | 10状态优先级 | 11反应 | **多维情感向量(PAD) + 时间衰减 + 情感音景** |
-| 渲染方式 | SVG/GIF/APNG | 精灵表 | **可插拔(3种已实现；Live2D SDK 接缝已实现，Canvas 回落)** |
-| 主题系统 | 完整但SVG-only | 精灵表only | **统一schema + 主题市场（本地+远程）** |
-| 社交能力 | 无 | 无 | **Pet Mesh 跨设备宠物社交网络** |
-| 系统监控 | 无 | 无 | **Desktop Mirror 系统监控 → 宠物情感** |
-| 测试 | ~160个 | 0个 | **87+ 测试** |
-| 语言 | JavaScript(CJS) | TypeScript | **TypeScript** |
-| 插件系统 | 无 | 无 | **动态插件加载 + manifest 验证已实现** |
+| 维度 | 实现方式 |
+|------|---------|
+| 桌面框架 | Electron 42 + 透明窗口 + 系统托盘 |
+| Agent 接入 | 统一适配层，12 种 Agent 适配器 + MCP Server |
+| 情感系统 | PAD 三维向量 + 时间衰减 + 情感音景 |
+| 渲染引擎 | 可插拔：CSS-Pixel / SVG / Sprite / Live2D（SDK 接缝 + Canvas 回落） |
+| 主题系统 | JSON schema + 变体 + 主题市场（本地 + 远程多源聚合） |
+| 状态管理 | 自定义优先级状态机，24 个状态 + 多会话解析 |
+| 跨设备社交 | Pet Mesh — WebSocket 对等网络 + 中继服务器 |
+| 系统感知 | Desktop Mirror — powerMonitor 空闲检测 + 前台应用映射 |
+| 语音交互 | Voice Companion — Web Speech API 识别 + 合成 |
+| 进化系统 | Pet Evolution — Git 行为分析 → 10 个进化特性 |
+| 测试覆盖 | 87+ Vitest 单元测试 |
 
 ---
 
@@ -782,7 +705,7 @@ unipet/
 
 ### 决策4: 为什么MCP Server是独立包?
 
-从openpets学到的教训：MCP server应该是独立的npm包，通过IPC与桌面应用通信。
+MCP server 应该是独立的 npm 包，通过 IPC 与桌面应用通信。
 - Agent可以 `npx @unipet/mcp` 启动，无需桌面应用预运行
 - 但桌面应用未运行时，MCP tools返回graceful error
 - 独立版本发布周期
