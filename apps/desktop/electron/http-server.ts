@@ -27,10 +27,8 @@ const VALID_MOVE_TARGETS = new Set([
   'stay', 'center', 'edge-left', 'edge-right', 'edge-top', 'edge-bottom',
   'corner-tl', 'corner-tr', 'corner-bl', 'corner-br',
 ]);
-const VALID_MESH_EVENTS = new Set(['state', 'speech', 'emotion', 'celebration', 'presence']);
 const MAX_MESH_ROOM_LENGTH = 64;
 const MAX_MESH_PEER_NAME_LENGTH = 64;
-const MAX_MESH_MESSAGE_LENGTH = 256;
 
 function isValidMoveTarget(value: string): value is MoveTarget {
   return VALID_MOVE_TARGETS.has(value);
@@ -47,10 +45,6 @@ function isValidMeshRelayUrl(value: string): boolean {
 
 function isValidMeshLabel(value: string, maxLength: number): boolean {
   return value.length > 0 && value.length <= maxLength && /^[\w .:@-]+$/.test(value);
-}
-
-function isValidMeshEvent(value: string): value is Parameters<MeshClient['broadcastEvent']>[0] {
-  return VALID_MESH_EVENTS.has(value);
 }
 
 function generateToken(): string {
