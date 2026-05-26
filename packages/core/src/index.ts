@@ -62,3 +62,21 @@ export {
 } from './config.js';
 
 export { createLogger, type Logger, type LogLevel } from './logger.js';
+
+export {
+  analyzeCodingPatterns,
+  parseGitLog,
+  type CodingPatterns,
+  type AnalyzerConfig,
+} from './evolution/git-analyzer.js';
+
+export {
+  evaluateEvolution,
+  getActiveVariantNames,
+  getEvolutionSummary,
+  createInitialEvolutionState,
+  EVOLUTION_TRAITS,
+  type EvolutionState,
+  type EvolutionTrait,
+  type TraitCategory,
+} from './evolution/evolution-engine.js';
