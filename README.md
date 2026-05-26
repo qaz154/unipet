@@ -103,6 +103,11 @@ The pet automatically reacts when your agent starts working. No configuration ne
 | **Theme Tools** | `create-theme.mjs` scaffold + `unipet theme validate` checker |
 | **Tier Animations** | `workingTiers` / `jugglingTiers` — animations scale with sessions |
 | **AI Perception** | Screenshot → multimodal LLM → pet state (bring-your-own API key) |
+| **Pet Evolution** | Git behavior analysis → 10 evolution traits (armor, eagle vision, titan, lightning, etc.) mapped to theme variants |
+| **Emotion Soundtrack** | Web Audio API ambient music driven by PAD emotion vector (valence→tonality, arousal→tempo, dominance→volume) |
+| **Voice Companion** | Speech recognition + synthesis; wake word "Hey UniPet"; commands: status, git summary, state change, sleep/wake |
+| **Desktop Mirror** | System monitoring → pet emotions: CPU stress→panting, low battery→yawning, IDE→coding, browser→reading |
+| **Pet Mesh** | WebSocket cross-device pet social network; peer discovery, state broadcast, celebration sync, relay server |
 | **Docs** | Full documentation in [docs/](docs/) |
 
 ## MCP Integration

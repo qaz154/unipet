@@ -103,6 +103,11 @@ node hooks/install-hooks.js --agent cursor
 | **主题工具** | `create-theme.mjs` 脚手架 + `unipet theme validate` 验证器 |
 | **分级动画** | `workingTiers` / `jugglingTiers` —— 根据会话数切换动画 |
 | **AI 感知** | 截图 → 多模态 LLM → 宠物状态（自带 API Key） |
+| **宠物进化** | Git 行为分析 → 10 个进化特性（盔甲、鹰眼、泰坦、闪电等）映射到主题变体 |
+| **情感音景** | Web Audio API 环境音乐，由 PAD 情感向量驱动（效价→调性，唤醒→节奏，支配→音量） |
+| **语音伴侣** | 语音识别 + 合成；唤醒词"Hey UniPet"；命令：状态查询、git 摘要、状态切换、睡眠/唤醒 |
+| **桌面镜像** | 系统监控 → 宠物情感：CPU 过载→喘气，低电量→打哈欠，IDE→编码，浏览器→阅读 |
+| **宠物网格** | WebSocket 跨设备宠物社交网络；对等发现、状态广播、庆祝同步、中继服务器 |
 | **文档** | 完整文档见 [docs/](docs/) |
 
 ## MCP 集成

@@ -711,10 +711,17 @@ unipet/
 ### Phase 6: 生态与发布 ✅ 已完成
 - [x] CLI工具 — 基础命令 (mcp/status/react/say)
 - [x] `unipet install` / `unipet doctor` / `unipet theme` — v0.1.7 收尾
-- [x] 主题市场 — ThemeMarketplace 多源聚合 + LocalMarketplaceSource
+- [x] 主题市场 — ThemeMarketplace 多源聚合 + LocalMarketplaceSource + RemoteMarketplaceSource
 - [x] Live2D渲染器 — SDK 接缝（Live2DSdkAdapter）+ Canvas 回落
 - [x] AI感知适配器 — 截屏 + 多模态LLM（mapActivityToState 提取为纯函数并补测试）
-- [x] 文档站骨架 — docs/ 目录，7 章节 Markdown
+- [x] 文档站 — VitePress 站点，10 章节
+
+### Phase 7: 创新功能 ✅ 已完成 (v0.1.9)
+- [x] Pet Evolution — Git 行为分析 → 10 个进化特性（防御/视力/耐力/速度/夜视/智慧），映射到主题变体
+- [x] Emotion Soundtrack — Web Audio API 环境音乐，由 PAD 情感向量驱动
+- [x] Voice Companion — 语音识别 + 合成；唤醒词"Hey UniPet"；命令解析
+- [x] Desktop Mirror — 系统监控 → 宠物情感（CPU/内存/电量/前台应用）
+- [x] Pet Mesh — WebSocket 跨设备宠物社交网络；中继服务器；对等发现
 
 ---
 
@@ -722,13 +729,15 @@ unipet/
 
 | 维度 | clawd-on-desk | openpets | UniPet |
 |------|--------------|----------|--------|
-| 桌面框架 | Electron (~150MB) | Electron (~150MB) | **Electron 36 (~150MB)** |
-| Agent支持 | 12种(每种单独适配) | MCP为主 | **统一适配层 + 10种适配器** |
-| AI能力 | 无 | 无 | **情感向量已实现；多模态感知已实现（mapActivityToState）；LLM对话为计划项** |
-| 情感系统 | 10状态优先级 | 11反应 | **多维情感向量(PAD) + 时间衰减** |
+| 桌面框架 | Electron (~150MB) | Electron (~150MB) | **Electron 42 (~150MB)** |
+| Agent支持 | 12种(每种单独适配) | MCP为主 | **统一适配层 + 12种适配器** |
+| AI能力 | 无 | 无 | **情感向量 + 多模态感知 + 语音伴侣 + 进化系统** |
+| 情感系统 | 10状态优先级 | 11反应 | **多维情感向量(PAD) + 时间衰减 + 情感音景** |
 | 渲染方式 | SVG/GIF/APNG | 精灵表 | **可插拔(3种已实现；Live2D SDK 接缝已实现，Canvas 回落)** |
-| 主题系统 | 完整但SVG-only | 精灵表only | **统一schema + ThemeMarketplace 多源聚合；远程市场接口已定义** |
-| 测试 | ~160个 | 0个 | **162+ 测试** |
+| 主题系统 | 完整但SVG-only | 精灵表only | **统一schema + 主题市场（本地+远程）** |
+| 社交能力 | 无 | 无 | **Pet Mesh 跨设备宠物社交网络** |
+| 系统监控 | 无 | 无 | **Desktop Mirror 系统监控 → 宠物情感** |
+| 测试 | ~160个 | 0个 | **87+ 测试** |
 | 语言 | JavaScript(CJS) | TypeScript | **TypeScript** |
 | 插件系统 | 无 | 无 | **动态插件加载 + manifest 验证已实现** |
 
